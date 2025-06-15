@@ -1,9 +1,10 @@
+const base = "/blog/"; // 设置base路径，部署到github时需要设置
+
 export default {
     title: 'Blog|WeCcRy', // 博客的标题
     description: 'wangy的个人博客', // 博客的介绍
-    // base: '/blog/', // 切换base路径，部署到github时需要设置
     head: [
-        ['link', { rel: 'icon', href: '/weblogo.ico' }],  // 指向 public/weblogo.ico
+        ['link', { rel: 'icon', href: `${base}/weblogo.ico` }],  // 指向 public/weblogo.ico
     ],
     themeConfig: {
         logo: "/images/weblogo.ico", // 页面上显示的logo
@@ -37,22 +38,6 @@ export default {
                             text: "文件下载",
                             link: "/articles/vue/文件下载",
                         },
-                    ],
-                },
-            ],
-            "/articles/uniapp/": [
-                {
-                    text: "基础",
-                    items: [
-                    ],
-                },
-                {
-                    text: "代码段",
-                    items: [
-                        {
-                            text: "一键登录",
-                            link: "/articles/uniapp/一键登录",
-                        }
                     ],
                 },
             ],
@@ -95,7 +80,7 @@ export default {
                 }
             ],
         },
-        socialLinks: [{ icon: "github", link: "https://github.com/mlyz-wdy" }], // 可以连接到 github
+        socialLinks: [{ icon: "github", link: "https://github.com/WeCcRy" }], // 可以连接到 github
     },
 }
 
