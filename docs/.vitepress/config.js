@@ -3,6 +3,7 @@ const base = "/blog/"; // 设置base路径，部署到github时需要设置
 export default {
     title: 'Blog|WeCcRy', // 博客的标题
     description: 'wangy的个人博客', // 博客的介绍
+    base: base, // 设置base路径，部署到github时需要设置
     head: [
         ['link', { rel: 'icon', href: `${base}/weblogo.ico` }],  // 指向 public/weblogo.ico
     ],
