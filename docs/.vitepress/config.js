@@ -1,16 +1,16 @@
 const base = "/blog/"; // 设置base路径，部署到github时需要设置
 
 export default {
-    title: 'Blog|WeCcRy', // 博客的标题
+    title: 'WeCcRy', // 博客的标题
     description: 'wangy的个人博客', // 博客的介绍
     base: base, // 设置base路径，部署到github时需要设置
     head: [
-        ['link', { rel: 'icon', href: `${base}/weblogo.ico` }],  // 指向 public/weblogo.ico
+        ['link', { rel: 'icon', href: `${base}weblogo.ico` }],  // 指向 public/weblogo.ico
     ],
     themeConfig: {
-        logo: "/images/weblogo.ico", // 页面上显示的logo
+        logo: "", // 页面上显示的logo
         nav: [ // 页面右上角的导航
-            { text: "vue", link: "/articles/vue/上传素材到COS" },
+            { text: "书籍", link: "/articles/books/书籍" },
             { text: "uniapp", link: "/articles/uniapp/一键登录" },
             {
                 text: '博客文档',
