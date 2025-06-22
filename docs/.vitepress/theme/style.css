@@ -1,0 +1,8 @@
+/* .vitepress/theme/style.css */
+:root {
+    --namespace: wy;
+    --primary-color: #411af1;
+    --text-color: #2c3e50;
+    --border-radius: 4px;
+    /* 其他全局变量 */
+}
