@@ -11,7 +11,13 @@ export default {
         logo: "", // 页面上显示的logo
         nav: [ // 页面右上角的导航
             { text: "书籍", link: "/articles/books/2025" },
-            // { text: "前端", link: "/articles/uniapp/一键登录" },
+            {
+                text: "前端",
+                items: [{
+                    text: "Typescript",
+                    link: "/articles/learn/Typescript"
+            }]
+            },
             // {
             //     text: '博客文档',
             //     items: [ // 可以配置成下拉
