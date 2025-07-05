@@ -28,5 +28,5 @@ features:
   - icon: 🚀
     title: Record For Practice
     details: What I Done
-    link: /articles/books/2025
+    link: /articles/practice/vue/自定义元素共享
 ---

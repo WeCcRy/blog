@@ -11,14 +11,20 @@ export default {
         logo: "", // 页面上显示的logo
         nav: [ // 页面右上角的导航
             { text: "书籍", link: "/articles/books/2025" },
+            // {
+            //     text: "前端",
+            //     // items: [{
+            //     //     text: "Typescript",
+            //     //     link: "/articles/frontend/typescript",
+            //     // }]
+            // },
             {
-                text: "前端",
-                // items: [{
-                //     text: "Typescript",
-                //     link: "/articles/frontend/typescript",
-                // }]
+                text: "实践",
+                items: [{
+                    text: "工程化",
+                    link: "/articles/practice/vue/自定义元素共享",
+                }]
             },
-            { text: "实践", link: "/articles/practice/自定义元素共享" },
         ],
         sidebar: { // 侧边栏，可以分组
             "/articles/books/": [
