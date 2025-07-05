@@ -13,19 +13,12 @@ export default {
             { text: "书籍", link: "/articles/books/2025" },
             {
                 text: "前端",
-                items: [{
-                    text: "Typescript",
-                    link: "/articles/learn/Typescript"
-            }]
+                // items: [{
+                //     text: "Typescript",
+                //     link: "/articles/frontend/typescript",
+                // }]
             },
-            // {
-            //     text: '博客文档',
-            //     items: [ // 可以配置成下拉
-            //         { text: 'JavaScript 核心系列', link: '/articles/javaScript-core/构造函数、原型、原型链' },
-            //         { text: 'Vue 三方组件库', link: '/articles/libs/VForm3低代码初体验' },
-            //         { text: '其他', link: '/articles/other/nvm管理node' },
-            //     ]
-            // }
+            { text: "实践", link: "/articles/practice/自定义元素共享" },
         ],
         sidebar: { // 侧边栏，可以分组
             "/articles/books/": [
