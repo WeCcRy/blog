@@ -499,7 +499,7 @@ dBtn.addEventListener('click', () => {
 
 注:actions.payload就是图四调用中传入的参数
 
-![](./react-redux.png)
+![](./images/react-redux.png)
 
 由于Redux自身只支持同步actions的操作，如果想使用异步actions，就必须要引入redux-thunk，这是一个中间件，用于拦截actions->state，可以在内部添加复杂逻辑。
 
