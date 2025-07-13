@@ -1,4 +1,5 @@
 const base = "/blog/"; // 设置base路径，部署到github时需要设置
+const thisYear = new Date().getFullYear(); // 获取当前年份
 
 export default {
     title: 'WeCcRy', // 博客的标题
@@ -10,7 +11,19 @@ export default {
     themeConfig: {
         logo: "", // 页面上显示的logo
         nav: [ // 页面右上角的导航
-            { text: "书籍", link: "/articles/books/2025" },
+            {
+                text: "书籍",
+                items: [
+                    {
+                        text: "日常",
+                        link: `/articles/books/daily/${thisYear}`,
+                    },
+                    {
+                        text: "技术",
+                        link: "/articles/books/pro/vueDesign",
+                    }
+                ]
+            },
             {
                 text: "前端",
                 items: [
@@ -18,6 +31,7 @@ export default {
                         text: "Vue3",
                         link: "/articles/frontend/vue",
                     },
+
                     {
                         text: "React18",
                         link: "/articles/frontend/React18",
@@ -43,29 +57,44 @@ export default {
             },
         ],
         sidebar: { // 侧边栏，可以分组
-            "/articles/books/": [
+            "/articles/books/daily": [
                 {
                     text: "年鉴",
                     items: [
                         {
                             text: "2025 / 乙巳蛇年",
-                            link: "/articles/books/2025",
+                            link: "/articles/books/daily/2025",
                         },
                         {
                             text: "2024 / 甲辰龙年",
-                            link: "/articles/books/2024",
+                            link: "/articles/books/daily/2024",
                         },
                         {
                             text: "2023 / 癸卯兔年",
-                            link: "/articles/books/2023",
+                            link: "/articles/books/daily/2023",
                         },
                         {
                             text: "2022 / 壬寅虎年",
-                            link: "/articles/books/2022",
+                            link: "/articles/books/daily/2022",
                         },
                         {
                             text: "2021 / 辛丑牛年",
-                            link: "/articles/books/2021",
+                            link: "/articles/books/daily/2021",
+                        }
+                    ],
+                },
+            ],
+            "/articles/books/pro": [
+                {
+                    text: "技术",
+                    items: [
+                        {
+                            text: "Vue设计与实现",
+                            link: "/articles/books/pro/vueDesign",
+                        },
+                        {
+                            text: "JS高级程序设计",
+                            link: "/articles/books/pro/JS高级程序设计",
                         }
                     ],
                 },
