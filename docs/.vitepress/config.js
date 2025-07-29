@@ -46,7 +46,7 @@ export default {
                 text: "实践",
                 items: [
                     {
-                        text: "八股",
+                        text: "基础",
                         link: "/articles/practice/八股/html",
                     },
                     {
@@ -120,7 +120,7 @@ export default {
             ],
             "articles/practice/八股/": [
                 {
-                    text: "八股",
+                    text: "基础",
                     items: [
                         {
                             text: "HTML",
