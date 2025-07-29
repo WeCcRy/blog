@@ -139,3 +139,54 @@ webworker有同源要求限制，即同协议，同域名，同端口。可以�
 ## 10. head标签的作用
 
 `<head>` 标签用于定义文档的头部，它是所有头部元素的容器。`<head>` 中的元素可以引用脚本、指示浏览器在哪里找到样式表、提供元信息等。必须要用`<title>`
+
+## 11. iframe标签
+
+`<iframe>` 标签用于在当前文档中嵌入另一个文档。可以通过`src`属性指定要嵌入的文档的URL。
+
+嵌入的文档可以是同源的，也可以是跨域的，但跨域时会受到一些限制，如无法访问嵌入文档的DOM。
+
+如果需要访问跨域的iframe内容，可以使用`postMessage`方法进行跨域通信。
+
+```javascript
+// 实例
+// 外部DOM
+onMounted(() => {
+  if (myIframe.value) {
+    // iframe加载完成后，通过iframe中的contentWindow向子应用传递数据，contentWindow代表iframe中的window对象
+    // 如果当前页面和iframe中的页面是同源的，可以直接访问contentWindow
+    // 否则需要使用postMessage进行跨域通信
+    myIframe.value.onload = () => {
+      myIframe.value.contentWindow.postMessage(
+          {
+            eventName: 'permissions',
+            permissions: window.MicroFrontends.permissions
+          },
+          '*'
+      );
+    };
+  }
+});
+// iframe内的DOM
+// 这里通过外部传入的权限数组来设置iframe内DOM的权限
+export function authDirective(app: App) {
+  window.addEventListener('message', event => {
+    const { eventName, permissions } = event.data // 通过event.data获取传递的数据
+    // 只处理permissions事件
+    if (eventName === 'permissions') {
+      window.permissions = permissions
+    }
+  })
+  let authBtnList = window.permissions || []
+  // 单个权限验证（v-auth="xxx"）
+  app.directive('auth', {
+    mounted(el, binding) {
+      if (authBtnList.length === 0) {
+        // 如果权限列表为空，则从全局变量中获取
+        authBtnList = window.permissions
+      }
+      if (!authBtnList.some((v: string) => v === binding.value)) el.parentNode.removeChild(el)
+    }
+  })
+}
+```
