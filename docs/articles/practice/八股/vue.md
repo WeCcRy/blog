@@ -1,5 +1,11 @@
 # Vue
 
+## SPA 是如何实现
+
+是利用了url中的hash特点(页面不会刷新)，原来的hash值是作为页面的锚实现快速定位的。SPA通过监听hash值的变化(触发hashChange事件)，解析hash的新值对应的路由，通过js隐藏当前页面，显示hash值对应的路由并请求数据。
+
+当然，SPA也可以使用history模式，它通过 history.pushState() 或 history.replaceState() 方法，直接修改 URL 的 “路径部分”。不过此时后端不知道前端路由已经发生了变化，如果直接输入非入口的html，且后端没有做配置的话，会返回404
+
 ## computed和watch区别
 
 **对于Computed：**
