@@ -190,3 +190,9 @@ export function authDirective(app: App) {
   })
 }
 ```
+
+## form标签
+
+form表单在点击提交按钮(`type = "submit"`)或在 `input` 中按下回车的时候（除`textarea`为换行），会自动收集**表单内**所有**带name属性**的元素，收集到的键值对会按 `name1=value1&name2=value2` 格式拼接，并传递给`action`指向的`url`，键值对的传递方式根据`form`中的`method`确定，`GET`对应**query参数**，`POST`对应**body请求体**，默认`method`为`GET`
+
+原生的`form`可以通过`type="reset"`的按钮来实现重置表单

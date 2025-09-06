@@ -120,6 +120,8 @@ IE盒子模型，height和width对应content+padding+border
 
 通过修改`box-sizing`属性来改变元素盒模型，content-box为标准盒子，border-box为IE盒子
 
+默认是 `context-box`,建议给全局的盒子(`*`)设置为 `border-box`
+
 ## 如何实现响应式布局
 
 通过视口宽度，高度vw,vh
@@ -333,7 +335,12 @@ z-index反应了元素的层级，z-index越大的，层级越靠上
 
 像素：与设备密度有关，一般都是统一的
 
-百分比：子元素的百分比相对于父元素，可以自适应变化
+百分比：子元素的百分比计算是基于**参考系**进行的，可以自适应变化
+
+- 非绝对定位元素：参考系为父元素中的`content-box`
+- 绝对定位元素：参考系为最近定位元素中的`padding`部分(padding+content)，不包含border部分。计算`left`等内容的时候也是基于`padding`部分
+
+除`height`外，其他内容(`width`,`padding`,`border`,`margin`)的计算都是基于参考系的`width`进行计算
 
 em和rem：
 
@@ -636,3 +643,12 @@ flex属性是flex-grow，flex-shrink和flex-basis的简写，默认值为0 1 aut
 ## 实现一条宽度0.5px的线
 
 使用transform:scale(1,0.5)
+
+
+## 实现半透明
+
+设置`rgba`,通过alpha调整透明度
+
+设置opacity
+
+两者的区别在于，通过颜色调整透明度可以针对颜色这一属性；opacity调整的透明度是针对元素的(相关元素会全部调整透明度)
