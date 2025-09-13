@@ -89,7 +89,11 @@ import{_ as l,C as t,c as i,o as e,ae as n,j as c,a,G as o}from"./chunks/framewo
 <span class="line"><span>      &lt;button onClick={fun}&gt;点击&lt;/button&gt;</span></span>
 <span class="line"><span>    &lt;/div&gt;</span></span>
 <span class="line"><span>  &lt;/&gt;</span></span>
-<span class="line"><span>)</span></span></code></pre></div><h2 id="样式引入" tabindex="-1">样式引入 <a class="header-anchor" href="#样式引入" aria-label="Permalink to &quot;样式引入&quot;">​</a></h2><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>// 1.行内样式</span></span>
+<span class="line"><span>)</span></span></code></pre></div><p>如果组件不是通过函数返回实现的，而是通过class实现的，则需要通过this.setState方法更新，此时setState非全量更新，而是局部更新(和老的state进行合并,合并第一层的属性)</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span></span></span>
+<span class="line"><span>## 样式引入</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>\`\`\`react</span></span>
+<span class="line"><span>// 1.行内样式</span></span>
 <span class="line"><span>function App() {</span></span>
 <span class="line"><span>  const style = {</span></span>
 <span class="line"><span>    color: &#39;red&#39;,</span></span>
