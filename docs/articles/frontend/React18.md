@@ -135,6 +135,10 @@ return (
 )
 ```
 
+如果组件不是通过函数返回实现的，而是通过class实现的，则需要通过this.setState方法更新，此时setState非全量更新，而是局部更新(和老的state进行合并,合并第一层的属性)
+
+```react
+
 ## 样式引入
 
 ```react
