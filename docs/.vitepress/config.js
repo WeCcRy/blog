@@ -55,6 +55,15 @@ export default {
                     },
                 ]
             },
+            {
+                text: "AI",
+                items: [
+                    {
+                        text: "Agent开发",
+                        link: "/articles/AI/agent开发",
+                    },
+                ]
+            },
         ],
         sidebar: { // 侧边栏，可以分组
             "/articles/books/daily": [
@@ -168,6 +177,17 @@ export default {
                         {
                             text: "echarts联动其他组件",
                             link: "/articles/practice/projection/echarts联动其他组件",
+                        },
+                    ],
+                },
+            ],
+            "/articles/AI/": [
+                {
+                    text: "AI",
+                    items: [
+                        {
+                            text: "Agent开发",
+                            link: "/articles/AI/agent开发",
                         },
                     ],
                 },
