@@ -59,6 +59,10 @@ export default {
                 text: "AI",
                 items: [
                     {
+                        text: "常用概念",
+                        link: "/articles/AI/concepts",
+                    },
+                    {
                         text: "Agent开发",
                         link: "/articles/AI/agent开发",
                     },
@@ -185,6 +189,10 @@ export default {
                 {
                     text: "AI",
                     items: [
+                        {
+                            text: "概念解释",
+                            link: "/articles/AI/concepts",
+                        },
                         {
                             text: "Agent开发",
                             link: "/articles/AI/agent开发",
