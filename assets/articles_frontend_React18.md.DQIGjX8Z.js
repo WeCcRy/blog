@@ -1,4 +1,4 @@
-import{_ as l,C as t,c as i,o as e,ae as n,j as c,a,G as o}from"./chunks/framework.z0sZ1NT9.js";const h="/blog/assets/react-redux.CbOKGAZi.png",y=JSON.parse('{"title":"React18","description":"","frontmatter":{},"headers":[],"relativePath":"articles/frontend/React18.md","filePath":"articles/frontend/React18.md"}'),r={name:"articles/frontend/React18.md"};function d(g,s,u,k,E,v){const p=t("Outlet");return e(),i("div",null,[s[2]||(s[2]=n(`<h1 id="react18" tabindex="-1">React18 <a class="header-anchor" href="#react18" aria-label="Permalink to &quot;React18&quot;">​</a></h1><h1 id="jsx" tabindex="-1">JSX <a class="header-anchor" href="#jsx" aria-label="Permalink to &quot;JSX&quot;">​</a></h1><h2 id="响应表达式" tabindex="-1">响应表达式 <a class="header-anchor" href="#响应表达式" aria-label="Permalink to &quot;响应表达式&quot;">​</a></h2><p>通过 <code>{}</code> 识别表达式，类似vue中的双<code>{}</code></p><h2 id="列表渲染" tabindex="-1">列表渲染 <a class="header-anchor" href="#列表渲染" aria-label="Permalink to &quot;列表渲染&quot;">​</a></h2><p>对比vue中用v-for</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>&lt;ul&gt;</span></span>
+import{_ as l,C as t,c as e,o as i,ae as n,j as c,a,G as o}from"./chunks/framework.z0sZ1NT9.js";const r="/blog/assets/react-redux.CbOKGAZi.png",m=JSON.parse('{"title":"React18","description":"","frontmatter":{},"headers":[],"relativePath":"articles/frontend/React18.md","filePath":"articles/frontend/React18.md"}'),h={name:"articles/frontend/React18.md"};function d(u,s,g,k,E,v){const p=t("Outlet");return i(),e("div",null,[s[2]||(s[2]=n(`<h1 id="react18" tabindex="-1">React18 <a class="header-anchor" href="#react18" aria-label="Permalink to &quot;React18&quot;">​</a></h1><h1 id="jsx" tabindex="-1">JSX <a class="header-anchor" href="#jsx" aria-label="Permalink to &quot;JSX&quot;">​</a></h1><h2 id="响应表达式" tabindex="-1">响应表达式 <a class="header-anchor" href="#响应表达式" aria-label="Permalink to &quot;响应表达式&quot;">​</a></h2><p>通过 <code>{}</code> 识别表达式，类似vue中的双<code>{}</code></p><h2 id="列表渲染" tabindex="-1">列表渲染 <a class="header-anchor" href="#列表渲染" aria-label="Permalink to &quot;列表渲染&quot;">​</a></h2><p>对比vue中用v-for</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>&lt;ul&gt;</span></span>
 <span class="line"><span>    {list.map(item=&gt;&lt;li key = {item.id}&gt;{item.value}&lt;/li&gt;)}</span></span>
 <span class="line"><span>&lt;/ul?</span></span></code></pre></div><h2 id="条件渲染" tabindex="-1">条件渲染 <a class="header-anchor" href="#条件渲染" aria-label="Permalink to &quot;条件渲染&quot;">​</a></h2><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>const flag = 0;</span></span>
 <span class="line"><span>return (</span></span>
@@ -89,11 +89,7 @@ import{_ as l,C as t,c as i,o as e,ae as n,j as c,a,G as o}from"./chunks/framewo
 <span class="line"><span>      &lt;button onClick={fun}&gt;点击&lt;/button&gt;</span></span>
 <span class="line"><span>    &lt;/div&gt;</span></span>
 <span class="line"><span>  &lt;/&gt;</span></span>
-<span class="line"><span>)</span></span></code></pre></div><p>如果组件不是通过函数返回实现的，而是通过class实现的，则需要通过this.setState方法更新，此时setState非全量更新，而是局部更新(和老的state进行合并,合并第一层的属性)</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span></span></span>
-<span class="line"><span>## 样式引入</span></span>
-<span class="line"><span></span></span>
-<span class="line"><span>\`\`\`react</span></span>
-<span class="line"><span>// 1.行内样式</span></span>
+<span class="line"><span>)</span></span></code></pre></div><p>如果组件不是通过函数返回实现的，而是通过class实现的，则需要通过this.setState方法更新，此时setState非全量更新，而是局部更新(和老的state进行合并,合并第一层的属性)</p><h2 id="样式引入" tabindex="-1">样式引入 <a class="header-anchor" href="#样式引入" aria-label="Permalink to &quot;样式引入&quot;">​</a></h2><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>// 1.行内样式</span></span>
 <span class="line"><span>function App() {</span></span>
 <span class="line"><span>  const style = {</span></span>
 <span class="line"><span>    color: &#39;red&#39;,</span></span>
@@ -150,7 +146,40 @@ import{_ as l,C as t,c as i,o as e,ae as n,j as c,a,G as o}from"./chunks/framewo
 <span class="line"><span>      &lt;button onClick={showDom}&gt;Show DOM&lt;/button&gt;</span></span>
 <span class="line"><span>    &lt;/&gt;</span></span>
 <span class="line"><span>  )</span></span>
-<span class="line"><span>}</span></span></code></pre></div><h2 id="组件间通信" tabindex="-1">组件间通信 <a class="header-anchor" href="#组件间通信" aria-label="Permalink to &quot;组件间通信&quot;">​</a></h2><p>父子通信，类似vue中的props</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>function Son(props) {</span></span>
+<span class="line"><span>}</span></span></code></pre></div><h2 id="forwardref-与-useimperativehandle" tabindex="-1">forwardRef 与 useImperativeHandle <a class="header-anchor" href="#forwardref-与-useimperativehandle" aria-label="Permalink to &quot;forwardRef 与 useImperativeHandle&quot;">​</a></h2><p>用于在函数组件中向父组件暴露内部 DOM 或自定义实例方法，常与 <code>forwardRef</code> 配合使用。</p><p>简单示例（<code>forwardRef</code> 转发 ref 到子组件的 DOM）：</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>// 子组件通过 forwardRef 转发 ref 到内部 DOM</span></span>
+<span class="line"><span>const Child = forwardRef((props, ref) =&gt; {</span></span>
+<span class="line"><span>  return &lt;input ref={ref} placeholder=&quot;child input&quot; /&gt;</span></span>
+<span class="line"><span>})</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>function Parent() {</span></span>
+<span class="line"><span>  const inputRef = useRef(null)</span></span>
+<span class="line"><span>  const focus = () =&gt; inputRef.current &amp;&amp; inputRef.current.focus()</span></span>
+<span class="line"><span>  return (</span></span>
+<span class="line"><span>    &lt;&gt;</span></span>
+<span class="line"><span>      &lt;Child ref={inputRef} /&gt;</span></span>
+<span class="line"><span>      &lt;button onClick={focus}&gt;聚焦子输入框&lt;/button&gt;</span></span>
+<span class="line"><span>    &lt;/&gt;</span></span>
+<span class="line"><span>  )</span></span>
+<span class="line"><span>}</span></span></code></pre></div><p>配合 <code>useImperativeHandle</code> 自定义暴露给父组件的接口（只导出需要的方法，保持封装）：</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>// 子组件自定义暴露的实例方法</span></span>
+<span class="line"><span>const Child = forwardRef((props, ref) =&gt; {</span></span>
+<span class="line"><span>  const inputRef = useRef(null)</span></span>
+<span class="line"><span>  useImperativeHandle(ref, () =&gt; ({</span></span>
+<span class="line"><span>    focus: () =&gt; inputRef.current &amp;&amp; inputRef.current.focus(),</span></span>
+<span class="line"><span>    clear: () =&gt; { if (inputRef.current) inputRef.current.value = &#39;&#39; }</span></span>
+<span class="line"><span>  }), [])</span></span>
+<span class="line"><span>  return &lt;input ref={inputRef} /&gt;</span></span>
+<span class="line"><span>})</span></span>
+<span class="line"><span></span></span>
+<span class="line"><span>function Parent() {</span></span>
+<span class="line"><span>  const childRef = useRef(null)</span></span>
+<span class="line"><span>  return (</span></span>
+<span class="line"><span>    &lt;&gt;</span></span>
+<span class="line"><span>      &lt;Child ref={childRef} /&gt;</span></span>
+<span class="line"><span>      &lt;button onClick={() =&gt; childRef.current?.focus()}&gt;调用子 focus()&lt;/button&gt;</span></span>
+<span class="line"><span>      &lt;button onClick={() =&gt; childRef.current?.clear()}&gt;调用子 clear()&lt;/button&gt;</span></span>
+<span class="line"><span>    &lt;/&gt;</span></span>
+<span class="line"><span>  )</span></span>
+<span class="line"><span>}</span></span></code></pre></div><p>注意：</p><ul><li><code>forwardRef</code> 用于将父组件的 <code>ref</code> 传递给函数组件；</li><li><code>useImperativeHandle</code> 应只暴露必要方法，避免破坏组件封装；</li><li>第三个参数（依赖数组）控制返回值重建时机。</li></ul><h2 id="组件间通信" tabindex="-1">组件间通信 <a class="header-anchor" href="#组件间通信" aria-label="Permalink to &quot;组件间通信&quot;">​</a></h2><p>父子通信，类似vue中的props</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>function Son(props) {</span></span>
 <span class="line"><span>  return (</span></span>
 <span class="line"><span>    &lt;div&gt;</span></span>
 <span class="line"><span>      &lt;span&gt;子组件&lt;/span&gt;</span></span>
@@ -343,7 +372,7 @@ import{_ as l,C as t,c as i,o as e,ae as n,j as c,a,G as o}from"./chunks/framewo
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  store.</span><span style="--shiki-light:#6F42C1;--shiki-dark:#B392F0;">dispatch</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">({</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">    type: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&#39;DECREMENT&#39;</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">  })</span></span>
-<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">})</span></span></code></pre></div><h2 id="react-redux" tabindex="-1">React-redux <a class="header-anchor" href="#react-redux" aria-label="Permalink to &quot;React-redux&quot;">​</a></h2><p>首先需要安装@reduxjs/toolkit和redux</p><p>操作逻辑如下</p><p>注:actions.payload就是图四调用中传入的参数</p><p><img src="`+h+`" alt=""></p><p>由于Redux自身只支持同步actions的操作，如果想使用异步actions，就必须要引入redux-thunk，这是一个中间件，用于拦截actions-&gt;state，可以在内部添加复杂逻辑。</p><p>redux-thunk会检测到返回的是函数，并自动执行它，传入 <code>dispatch</code> 和 <code>getState</code>两个函数。如果传递的是普通对象，redux-thunk不会进行额外操作。</p><p>写法如下</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>// 这是一个异步的actions</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">})</span></span></code></pre></div><h2 id="react-redux" tabindex="-1">React-redux <a class="header-anchor" href="#react-redux" aria-label="Permalink to &quot;React-redux&quot;">​</a></h2><p>首先需要安装@reduxjs/toolkit和redux</p><p>操作逻辑如下</p><p>注:actions.payload就是图四调用中传入的参数</p><p><img src="`+r+`" alt=""></p><p>由于Redux自身只支持同步actions的操作，如果想使用异步actions，就必须要引入redux-thunk，这是一个中间件，用于拦截actions-&gt;state，可以在内部添加复杂逻辑。</p><p>redux-thunk会检测到返回的是函数，并自动执行它，传入 <code>dispatch</code> 和 <code>getState</code>两个函数。如果传递的是普通对象，redux-thunk不会进行额外操作。</p><p>写法如下</p><div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>// 这是一个异步的actions</span></span>
 <span class="line"><span>const fetchFoodList = () =&gt; {</span></span>
 <span class="line"><span>	// 返回一个异步的函数</span></span>
 <span class="line"><span>    return async(dispatch) =&gt; {</span></span>
@@ -416,7 +445,7 @@ import{_ as l,C as t,c as i,o as e,ae as n,j as c,a,G as o}from"./chunks/framewo
 <span class="line"><span></span></span>
 <span class="line"><span>{/*使用useParams钩子接受参数*/}</span></span>
 <span class="line"><span>const params = useParams() // 返回的是对象</span></span>
-<span class="line"><span>const name = params.name   // 直接访问对象属性即可</span></span></code></pre></div><h2 id="嵌套路由" tabindex="-1">嵌套路由 <a class="header-anchor" href="#嵌套路由" aria-label="Permalink to &quot;嵌套路由&quot;">​</a></h2>`,74)),c("p",null,[s[0]||(s[0]=a("通过在路由中配置Children实现子路由，然后再在主路由中配置")),o(p),s[1]||(s[1]=a(",该标签会将对应的路由组件渲染到该标签内"))]),s[3]||(s[3]=n(`<div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>// 创建路由</span></span>
+<span class="line"><span>const name = params.name   // 直接访问对象属性即可</span></span></code></pre></div><h2 id="嵌套路由" tabindex="-1">嵌套路由 <a class="header-anchor" href="#嵌套路由" aria-label="Permalink to &quot;嵌套路由&quot;">​</a></h2>`,83)),c("p",null,[s[0]||(s[0]=a("通过在路由中配置Children实现子路由，然后再在主路由中配置")),o(p),s[1]||(s[1]=a(",该标签会将对应的路由组件渲染到该标签内"))]),s[3]||(s[3]=n(`<div class="language-react vp-adaptive-theme"><button title="Copy Code" class="copy"></button><span class="lang">react</span><pre class="shiki shiki-themes github-light github-dark vp-code" tabindex="0"><code><span class="line"><span>// 创建路由</span></span>
 <span class="line"><span>const router = createBrowserRouter([</span></span>
 <span class="line"><span>  {</span></span>
 <span class="line"><span>    path: &quot;/&quot;,</span></span>
@@ -465,4 +494,4 @@ import{_ as l,C as t,c as i,o as e,ae as n,j as c,a,G as o}from"./chunks/framewo
 <span class="line"><span></span></span>
 <span class="line"><span>\`createBrowserRouter\` 对应的是history模式</span></span>
 <span class="line"><span></span></span>
-<span class="line"><span>\`createHashRouter\` 对应的是hash模式</span></span></code></pre></div>`,1))])}const m=l(r,[["render",d]]);export{y as __pageData,m as default};
+<span class="line"><span>\`createHashRouter\` 对应的是hash模式</span></span></code></pre></div>`,1))])}const y=l(h,[["render",d]]);export{m as __pageData,y as default};
