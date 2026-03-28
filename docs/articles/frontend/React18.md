@@ -137,8 +137,6 @@ return (
 
 如果组件不是通过函数返回实现的，而是通过class实现的，则需要通过this.setState方法更新，此时setState非全量更新，而是局部更新(和老的state进行合并,合并第一层的属性)
 
-```react
-
 ## 样式引入
 
 ```react
@@ -217,6 +215,63 @@ function App() {
   )
 }
 ```
+
+## forwardRef 与 useImperativeHandle
+
+用于在函数组件中向父组件暴露内部 DOM 或自定义实例方法，常与 `forwardRef` 配合使用。
+
+简单示例（`forwardRef` 转发 ref 到子组件的 DOM）：
+
+```react
+// 子组件通过 forwardRef 转发 ref 到内部 DOM
+const Child = forwardRef((props, ref) => {
+  return <input ref={ref} placeholder="child input" />
+})
+
+function Parent() {
+  const inputRef = useRef(null)
+  const focus = () => inputRef.current && inputRef.current.focus()
+  return (
+    <>
+      <Child ref={inputRef} />
+      <button onClick={focus}>聚焦子输入框</button>
+    </>
+  )
+}
+```
+
+配合 `useImperativeHandle` 自定义暴露给父组件的接口（只导出需要的方法，保持封装）：
+
+```react
+// 子组件自定义暴露的实例方法
+const Child = forwardRef((props, ref) => {
+  const inputRef = useRef(null)
+  useImperativeHandle(ref, () => ({
+    focus: () => inputRef.current && inputRef.current.focus(),
+    clear: () => { if (inputRef.current) inputRef.current.value = '' }
+  }), [])
+  return <input ref={inputRef} />
+})
+
+function Parent() {
+  const childRef = useRef(null)
+  return (
+    <>
+      <Child ref={childRef} />
+      <button onClick={() => childRef.current?.focus()}>调用子 focus()</button>
+      <button onClick={() => childRef.current?.clear()}>调用子 clear()</button>
+    </>
+  )
+}
+```
+
+注意：
+- `forwardRef` 用于将父组件的 `ref` 传递给函数组件；
+- `useImperativeHandle` 应只暴露必要方法，避免破坏组件封装；
+- 第三个参数（依赖数组）控制返回值重建时机。
+
+
+
 
 ## 组件间通信
 
