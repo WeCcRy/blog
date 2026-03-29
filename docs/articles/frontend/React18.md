@@ -562,7 +562,7 @@ dBtn.addEventListener('click', () => {
 
 由于Redux自身只支持同步actions的操作，如果想使用异步actions，就必须要引入redux-thunk，这是一个中间件，用于拦截actions->state，可以在内部添加复杂逻辑。
 
-redux-thunk会检测到返回的是函数，并自动执行它，传入 `dispatch` 和 `getState`两个函数。如果传递的是普通对象，redux-thunk不会进行额外操作。
+原先流程是使用时直接使用dispatch传入名称和参数，现在相当于使用一个异步函数包上这个流程，然后直接dispatch这个函数。redux-thunk会检测到返回的是函数，并自动执行它，传入 `dispatch` 和 `getState`两个函数。如果传递的是普通对象，redux-thunk不会进行额外操作。
 
 写法如下
 

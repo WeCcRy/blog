@@ -37,6 +37,10 @@ export default {
                         link: "/articles/frontend/React18",
                     },
                     {
+                        text: "react原理",
+                        link: "/articles/frontend/react原理",
+                    },
+                    {
                         text: "Typescript",
                         link: "/articles/frontend/typescript",
                     },
@@ -116,18 +120,22 @@ export default {
                 {
                     text: "前端",
                     items: [
-                        {
-                            text: "Vue3",
-                            link: "/articles/frontend/vue",
-                        },
-                        {
-                            text: "React18",
-                            link: "/articles/frontend/React18",
-                        },
-                        {
-                            text: "Typescript",
-                            link: "/articles/frontend/typescript",
-                        },
+                                {
+                                    text: "Vue3",
+                                    link: "/articles/frontend/vue",
+                                },
+                                {
+                                    text: "React18",
+                                    link: "/articles/frontend/React18",
+                                },
+                                {
+                                    text: "react原理",
+                                    link: "/articles/frontend/react原理",
+                                },
+                                {
+                                    text: "Typescript",
+                                    link: "/articles/frontend/typescript",
+                                },
                     ],
                 },
             ],
