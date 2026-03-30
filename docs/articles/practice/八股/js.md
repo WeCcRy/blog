@@ -296,6 +296,226 @@ obj.isPrototypeOf(OBJ) // （左操作数）是否存在于另一个对象（右
 obj instanceOf func // 左操作数（对象）是否是右操作数（构造函数）的直接或间接实例
 ```
 
+## 事件循环
+
+1. 执行同步代码
+2. 清空所有微任务队列
+3. 执行 requestAnimationFrame 回调
+4. 执行页面布局、重绘渲染
+5. 处理宏任务队列（setTimeout、事件、IO 等）
+6. 有空余时间 → 执行 requestIdleCallback
+
+### requestAnimationFrame
+
+requestAnimationFrame 是一个专门用于动画的 API，回调函数会在浏览器下一次重绘之前执行，适合进行动画更新。它的回调函数会接收一个 timestamp 参数，表示回调被调用时的时间戳，可以用来计算动画的进度。
+
+```javascript
+// 简单示例，让一个元素从左向右移动100px，使用requestAnimationFrame实现动画效果
+const box = document.getElementById('box')
+let x = 0
+let rafId
+
+function animate() {
+  x += 2
+
+  if (x >= 100) {
+    x = 100
+    box.style.left = x + 'px'
+    // 取消，不再执行
+    cancelAnimationFrame(rafId)
+    return
+  }
+
+  box.style.left = x + 'px'
+
+  rafId = requestAnimationFrame(animate)
+}
+
+rafId = requestAnimationFrame(animate)
+```
+
+### requestIdleCallback
+
+requestIdleCallback 是一个用于在浏览器空闲时执行回调的 API，适合进行一些不紧急的任务，如预加载资源、数据分析等。回调函数会接收一个 deadline 参数，包含一个 timeRemaining() 方法，可以用来判断当前空闲时间还剩多少。这个方法优先级很低，可能永远不会执行
+
+```javascript
+// 简单示例，使用requestIdleCallback上报埋点
+// 埋点队列
+let trackQueue = []
+
+// 1. 埋点入口：只入队，不上报，mc/mv埋点手动调用track函数
+function track(event) {
+  trackQueue.push(event)
+
+  // 达到阈值，触发上报
+  if (trackQueue.length >= 20) {
+    scheduleReport()
+  }
+}
+
+// 2. 闲时调度（核心：模拟 requestIdleCallback）
+function scheduleReport() {
+  if (window.requestIdleCallback) {
+    // 浏览器闲时上报，超时2s必定发送兜底
+    requestIdleCallback(report, { timeout: 2000 })
+  } else {
+    setTimeout(report, 0)
+  }
+}
+
+// 3. 真正上报：一次性发一批，不是发多个
+async function report() {
+  if (trackQueue.length === 0) return
+
+  // 拷贝当前队列，立即清空
+  const data = [...trackQueue]
+  trackQueue = []
+
+  try {
+    await fetch('/report', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    })
+  } catch (err) {
+    // 失败重新塞回队列，下次再试
+    trackQueue.unshift(...data)
+  }
+}
+
+// 4. 定时兜底，防止永远不上报
+setInterval(scheduleReport, 2000)
+```
+
+
+微任务：Promise.then/catch/finally、MutationObserver、process.nextTick(Node)
+
+宏任务：setTimeout/setInterval、setImmediate(Node)、I/O（网络请求）、UI渲染（reflow/repaint）、postMessage、MessageChannel通信
+
+### setTimeout
+
+多次调用setTimeout(fn, 0)并不意味着fn会在0毫秒后执行，而是会被放入宏任务队列中，等当前执行栈清空后才会执行，所以实际的延迟时间可能会大于0毫秒，具体取决于当前执行栈的长度和系统的调度。且如果系统检测到连续调用setTimeout(fn, 0)，会自动将延迟时间增加到4毫秒，以避免过度占用CPU资源。
+
+### postMessage
+
+postMessage定位为「通用跨上下文通信工具」，适合各类简单至中等复杂度的跨域/跨窗口通信，核心场景如下：
+
+1. 父页面 ↔ iframe 通信（最常用）：父页面向iframe内嵌页面发送指令、传递数据，或iframe向父页面反馈结果（如iframe加载完成、表单提交状态）。
+
+2. 跨域页面通信：两个不同域名的窗口（如A域名页面打开B域名页面）之间传递数据，无需后端代理，直接通过postMessage实现。
+
+3. 主线程 ↔ Web Worker 通信：主线程向Worker发送计算任务、配置参数，Worker完成计算后向主线程返回结果，避免阻塞主线程。
+
+4. 简单双向消息交互：通过`e.source`实现双向通信，无需提前保存目标窗口引用，收到消息后可直接回复发送方（如A→B发送请求，B通过e.source向A回复响应）。
+
+5. 单次/少量消息传递：适合非高频、数据量不大的消息通知（如页面状态同步、简单指令传递）。
+
+#### 使用流程
+
+1. 核心语法
+
+发送消息：`targetWindow.postMessage(data, targetOrigin, [transferable])`
+- targetWindow：目标窗口（接收消息的窗口/Worker），即“要把消息发给谁”，不是当前自身窗口（重点区分：当前窗口是发送方，targetWindow是接收方）。
+
+- data：要传递的消息内容，支持结构化克隆（可传对象、数组、Blob、File等，不支持函数、Symbol）。一般可以通过配置data中的type字段来区分消息类型，方便接收方处理。可参考数据结构示例：
+
+```javascript
+{​
+    type: '消息类型', // 核心：区分普通/特殊消息的标识​
+    content: '消息内容', // 实际要传递的数据​
+    extra: {} // 可选：额外参数（如port、数组等）​
+}
+```
+
+- targetOrigin：目标窗口的域名（如`https://xxx.com`），用于安全校验，生产环境必须指定具体域名，禁止用`*`（`*`表示允许任意域名接收，有安全风险）。
+
+- transferable（可选，第三个参数）：可选的可转移对象列表（数组形式），用于传递“可转移所有权”的对象，最常用场景就是配合MessageChannel传递port（端口），也可传递ArrayBuffer等。传递后，原上下文将失去该对象的所有权，无法再使用。示例（结合MessageChannel的port传递）：`targetWindow.postMessage(data, targetOrigin, [port])`;其中`[port]`就是第三个参数，用于将MessageChannel的端口（如port2）传递给目标上下文，实现后续点对点通信（这也是MessageChannel依赖postMessage的核心原因）。
+
+2. 基础用法
+
+示例：A页面（父页面）向B页面（iframe内嵌页面）发送消息
+
+```javascript
+// A页面（发送方）：获取iframe的targetWindow，发送消息
+const iframe = document.querySelector('iframe');
+const targetWindow = iframe.contentWindow; // targetWindow是B页面（接收方）, contentWindow是获取iframe内嵌页面的窗口对象
+// 发送消息，指定目标域名（生产环境替换为实际域名）
+targetWindow.postMessage({ type: 'greet', content: '你好，B页面' }, 'https://b-domain.com');
+
+// B页面（接收方）：监听message事件，接收消息
+window.addEventListener('message', (e) => {
+  // 安全校验：只处理信任域名的消息（必写，防止恶意攻击）
+  if (e.origin !== 'https://a-domain.com') return;
+  
+  console.log('B页面收到消息：', e.data); // 打印：{ type: 'greet', content: '你好，B页面' }
+  console.log('消息发送方：', e.source); // e.source 就是A页面的窗口对象
+});
+```
+
+3. 双向通信
+
+关键：B页面收到A的消息后，通过`e.source`（即A页面的窗口对象），直接向A页面回复消息，无需额外获取A的引用，实现双向交互。
+
+```javascript
+// A页面（发送方+接收方）：发送消息 + 监听B的回复
+const iframe = document.querySelector('iframe');
+const targetWindow = iframe.contentWindow;
+
+// 1. A向B发送消息
+targetWindow.postMessage({ type: 'greet', content: '你好，B页面' }, 'https://b-domain.com');
+
+// 2. A监听B的回复
+window.addEventListener('message', (e) => {
+  if (e.origin !== 'https://b-domain.com') return;
+  console.log('A页面收到回复：', e.data); // 接收B的回复
+});
+
+// B页面（接收方+回复方）：接收A的消息 + 用e.source回复
+window.addEventListener('message', (e) => {
+  if (e.origin !== 'https://a-domain.com') return;
+  
+  // e.source 就是A页面的窗口对象，直接用它回复A
+  e.source.postMessage({ type: 'reply', content: '收到，A页面' }, 'https://a-domain.com');
+});
+```
+
+4. 向Worker发送消息
+
+```javascript
+const worker = new Worker('worker.js');​
+// 特殊消息：计算任务​
+worker.postMessage({​
+  type: 'workerCalc', // 标识：Worker计算任务（特殊消息）​
+  data: [10, 20] // 计算参数​
+});​
+// 普通消息：通知Worker停止任务​
+worker.postMessage({​
+  type: 'workerStop', // 标识：普通控制消息​
+  content: '停止当前计算'​
+});​
+​
+// 接收方（Worker）：根据type执行不同逻辑​
+self.addEventListener('message', (e) => {​
+  switch (e.data.type) {​
+    case 'workerCalc':​
+      // 处理特殊消息：计算任务​
+      const result = e.data.data[0] + e.data.data[1];​
+      // 重点：此处用self.postMessage 和 e.source.postMessage 效果对比（聚焦Worker场景）​
+      self.postMessage({ type: 'calcResult', result }); // 推荐写法​
+      // e.source.postMessage({ type: 'calcResult', result }); // 可选写法（效果一致，但多余，self一般就是主线程）​
+      break;​
+    case 'workerStop':​
+      // 处理普通消息：停止任务​
+      self.close();​
+      break;​
+  }​
+});
+```
+
+### messageChannel
+
+### broadcastChannel
+
+
 # ES6中的新特性
 
 ## let，const，var的区别

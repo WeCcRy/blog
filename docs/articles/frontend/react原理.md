@@ -189,4 +189,4 @@ const isTaskIncludedInBatchByLanes2 = (task & batchOfTasks) !== 0;
 
 说明：React 通过组合这些位（位掩码）来表示一组 pending lanes，例如 `pendingLanes |= TransitionLane1`，并用 `(pendingLanes & lane) !== 0` 来判断某个 lane 是否存在。JavaScript 的位运算在底层当作有符号 32 位整数，最高位是符号位（索引 31）。为了避免符号位带来的负数/不确定行为，实践中只用低 31 位（索引 0 到 30）
 
-
+## 调度原理
