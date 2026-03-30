@@ -159,4 +159,34 @@ const isTaskIncludedInBatchRange =
 // - Lanes 直接通过位运算判断
 const isTaskIncludedInBatchByLanes2 = (task & batchOfTasks) !== 0;
 ```
-    
+
+### 常见车道类型
+
+
+- `NoLane`
+	- 二进制：`0b0`
+
+- `Sync` / `Immediate`（位 0）
+	- 二进制：`0b1` （`1 << 0`）
+
+- `InputDiscrete`（离散输入，位 1）
+	- 二进制：`0b10` （`1 << 1`）
+
+- `InputContinuous`（连续输入，位 2）
+	- 二进制：`0b100` （`1 << 2`）
+
+- `Default`（默认，位 3）
+	- 二进制：`0b1000` （`1 << 3`）
+
+- `Transition`（过渡 / startTransition，示例占用位 4..15）
+	- 示例：`TransitionLane1 = 0b1_0000` （`1 << 4`）、`TransitionLane2 = 0b10_0000` （`1 << 5`），依此类推直到 `1 << 15`。
+
+- `Retry` / `Hydration`（示例高位，例如位 16..17）
+	- 示例：`0b1 << 16`、`0b1 << 17`
+
+- `Low` / `Idle`（低优先级 / 空闲，例如位 22..23）
+	- 示例：`0b1 << 22`、`0b1 << 23`
+
+说明：React 通过组合这些位（位掩码）来表示一组 pending lanes，例如 `pendingLanes |= TransitionLane1`，并用 `(pendingLanes & lane) !== 0` 来判断某个 lane 是否存在。JavaScript 的位运算在底层当作有符号 32 位整数，最高位是符号位（索引 31）。为了避免符号位带来的负数/不确定行为，实践中只用低 31 位（索引 0 到 30）
+
+
