@@ -389,7 +389,9 @@ setInterval(scheduleReport, 2000)
 
 微任务：Promise.then/catch/finally、MutationObserver、process.nextTick(Node)
 
-宏任务：setTimeout/setInterval、setImmediate(Node)、I/O（网络请求）、UI渲染（reflow/repaint）、postMessage、MessageChannel通信
+宏任务：setTimeout/setInterval、setImmediate(Node)、I/O（网络请求）、UI渲染（reflow/repaint）、onMessage、MessageChannel.onMessage
+
+postMessage是同步任务
 
 ### setTimeout
 
@@ -511,9 +513,213 @@ self.addEventListener('message', (e) => {​
 });
 ```
 
-### messageChannel
+### MessageChannel
 
-### broadcastChannel
+`MessageChannel` 接口允许我们创建一个新的消息通道，并通过它的两个 `MessagePort` 属性发送数据。它主要用于在不同的执行上下文（如主线程与 Worker、多个 iframe 之间）建立直接的双向通信管道。
+
+#### 使用场景
+
+1.  **Worker 间直接通信**：通常我们将数据发给 Web Worker，Worker 处理完后再发给主线程。如果需要两个独立 Worker 之间相互通信，通过主线程中转会带来额外开销，这时可以将 `MessageChannel` 的一个端口传递给一个 Worker，另一个端口传递给另一个 Worker，实现两个 Worker 之间直接通信。
+2.  **跨 Iframe 通信**：在不同 `iframe` 或主页面与 `iframe` 之间进行私密且互不干扰的通信。相比 `window.postMessage` 向整个窗口广播，`MessageChannel` 提供了点对点的通信方式。
+3.  **深拷贝**：利用其内部的结构化克隆算法（Structured Clone Algorithm），可以实现一个包含处理循环引用或特殊数据类型对象的深拷贝函数（不过现在有 `structuredClone` 原生 API 后，这种用法较少被提及，但在老版本浏览器中是一种经典的 Hack 方式）。
+4.  **宏任务调度**：在 Vue 的早期版本（Vue 2.5 左右）中，为了实现 `nextTick`，曾经使用 `MessageChannel` 来实现宏任务的异步调度，因为它的执行时机比 `setTimeout(fn, 0)` 略快且不受浏览器 4ms 最小延迟限制。
+
+#### 扩展：React 为什么依赖 MessageChannel 进行调度？
+
+在前端框架的调度机制中，`MessageChannel` 扮演着非常重要的角色，尤其是在 React 的底层 Scheduler（调度器）中：
+
+**1. 核心诉求：时间切片（Time Slicing）**
+React 16 引入 Fiber 架构后，实现了**可中断的异步渲染（Concurrent Mode）**。React 需要在执行耗时的渲染任务时，定期（通常每 5ms 左右）将控制权交还给浏览器，让浏览器优先去处理用户的输入（如点击、输入框输入）或者执行 UI 重绘，从而防止页面卡顿（掉帧）。
+
+**2. 为什么必须是宏任务（Macrotask）？**
+交还了控制权之后，React 还需要在浏览器闲下来时继续刚才未完成的渲染工作。要想在主线程处理完其他事情后再次恢复执行，React 必须开辟一个新的**宏任务**去重新排队（如果用微任务，微任务会一直阻塞浏览器的重绘，这跟不中断是一样的效果，起不到让出线程的作用）。
+
+**3. 为什么是 `MessageChannel` 而不是 `setTimeout`？**
+既然要使用宏任务，大家最熟悉的通常是 `setTimeout(fn, 0)`。但是，根据 HTML 标准规范，原生的 `setTimeout` 在嵌套调用层级超过 5 层时，会强制施加一个 **4ms 的最小延迟**（节流限制）。
+对于 React 这样需要非常高频地中断、恢复调度的场景来说，每次中断都额外等 4ms 完全不可接受，会导致 CPU 时间被大量浪费。
+而 `MessageChannel` 的 `onmessage` 同样是一个宏任务，但**它的延迟几乎为 0ms**，执行时机比 `setTimeout` 快得多，完美契合了 React Scheduler 需要零延迟、高频派发宏任务来让出主线程的需求。
+
+**4. React 如何利用它**
+
+具体来说，React 的 Scheduler 会：
+1. 自己创建一个 `new MessageChannel()`
+2. 把任务函数绑定到 `channel.port1.onmessage` 上
+3. 当时间切片耗尽（比如执行了 5ms），React 需要主动暂停任务，此时它会调用 `channel.port2.postMessage(null)`
+4. 这句话的作用就是抛出一个“宏任务”炸弹到事件循环（Event Loop）中。
+5. 此时控制权回到浏览器手中，浏览器可以顺势处理用户的点击或页面的重绘。
+6. 等浏览器手头上的其他任务做完，Event Loop 轮转到下一个宏任务，碰巧刚才 React 扔进来的宏任务触发了，于是 `port1.onmessage` 再次带起 React，继续回去执行下一个 5ms 的任务。
+
+> **对比补充 (Vue 为什么不用宏任务？微任务不卡事件循环吗？)**：
+> 
+> **1. 微任务确实会阻塞渲染**：微任务是在当前宏任务执行完毕后、浏览器重绘*前*执行的。如果 Vue 发起的组件更新和 DOM 生成非常庞大，这个微任务环节就会执行很久，确实会堵塞浏览器的呈现流水线，导致掉帧卡顿。
+>
+> **2. Vue 是故意这么设计（批量异步更新）**：多数业务场景中，我们会在同步代码中连续多次改变数据（如 `a=1; b=2`）。Vue 会把这些连串的操作合并进一个更新队列。然后只开启一个微任务 `Promise.then`，目的是为了在**浏览器下一次重绘前**，把所有要变的真实 DOM **一口气全改掉**，避免浏览器傻乎乎地去重排多次、避免用户看到中间的残缺状态（屏幕闪烁）。
+> 
+> **3. 为什么 Vue 敢卡主线程而 React 必须切片？**
+> React 只要组件状态变化，往往需要从上往下重新对比庞大的虚拟 DOM 树（尤其是以前的版本），计算量极大。如果不主动切片（宏任务让出线程），动辄几十上百毫秒的阻塞会造成极其严重的卡顿。
+> 而 Vue 的更新得益于 Proxy 的依赖收集和编译时的静态提升，它**极其清楚知道哪里需要更新（极细的颗粒度）**。绝大多数普通大小的组件更新，Vue 都能在短短几毫秒内利用微任务瞬间搞定，完全没必要中途挂起。至于偶尔遇到一次性渲染一万行表格这种极端情况，Vue 认为应该通过上层的业务手段（如虚拟列表、分页）去解决，而不是牺牲框架核心调度的简洁与稳定性来做时间切片。
+>
+> **4. 理念差异：对状态变化的“感知粒度”**
+> - **React** 是“不可变数据（Immutable）”+“粗粒度”感知。当你调用 `setState` 时，React 根本不知道到底是哪个具体的属性改变了，它只知道“这个 Fiber 节点（组件）的状态脏了”，需要被重新执行（Render），由于 React 不知道究竟改了哪，所以它只能把这个组件及其子组件全部执行一遍，生成全新的虚拟 DOM，最后通过 Diff 算法把新旧树对比，查出来哪里不同再去更新真实 DOM。这个“大海捞针”般的盲猜+对比过程是非常耗时的。
+> - **Vue** 是“响应式数据（Reactive）”+“细粒度”感知。由于数据被 `Proxy` 劫持了（或者 Vue2 的 `Object.defineProperty`），当你修改 `obj.a = 1` 时，Vue 精确知道是 `a` 变了，并且精确知道页面上只有哪几个 DOM 节点绑定了 `a`。Vue 3 配合编译时的靶向更新（PatchFlags），甚至可以直接跳过大部分不需要更新的虚拟节点，直接去修改那个具体的真实 DOM 属性。 
+>
+> **5. 最终框架复杂度的体现**
+> 正是因为上述的感知粒度不同，导致 React 的计算负担重得出奇。所以 React 也不得不在底层维护一套极其复杂的、带有各种优先级（Lane 机制）并且依赖 `MessageChannel` 进行中断恢复的 Scheduler 任务调度系统。而 Vue 凭着精确的制导武器，只需要用一个简单的微任务队列，把所有的靶向 DOM 更新一次性冲刷（flush）掉即可。
+
+#### 使用方法
+
+`MessageChannel` 实例拥有两个只读属性：`port1` 和 `port2`。这两个端口相互连接，你可以从 `port2` 发送消息到 `port1`，反之亦然。
+
+**1. 基本用法**
+
+```javascript
+const channel = new MessageChannel();
+
+// 监听 port1 接收到的消息
+channel.port1.onmessage = function (event) {
+  console.log('port1 收到消息:', event.data);
+};
+
+// 监听 port2 接收到的消息
+channel.port2.onmessage = function (event) {
+  console.log('port2 收到消息:', event.data);
+};
+
+// 发送消息
+channel.port1.postMessage('Hello from port1');
+channel.port2.postMessage('Hello from port2');
+```
+
+**2. 在 iframe 中使用**
+
+这是 `MessageChannel` 非常典型的用例，主页面与 iframe 建立点对点通信：
+
+```javascript
+// 主页面 (index.html)
+const iframe = document.querySelector('iframe');
+const channel = new MessageChannel();
+
+// 监听 port1 的消息
+channel.port1.onmessage = (e) => {
+  console.log('主页面收到了来自 iframe 的消息:', e.data);
+};
+
+// 必须等待 iframe 加载完成
+iframe.addEventListener('load', () => {
+  // 把 port2 发送给 iframe，通过 Transferable objects 转移所有权
+  // 注意，第二个参数是目标源，'*' 仅作演示，生产环境应指定具体域名
+  iframe.contentWindow.postMessage('init', '*', [channel.port2]); 
+});
+
+// 主页面发送消息到 iframe
+channel.port1.postMessage('主页面发来问候！');
+```
+
+```javascript
+// iframe 页面 (iframe.html)
+window.addEventListener('message', (event) => {
+  // 检查是否是被赋予 port2 的初始化消息
+  if (event.data === 'init' && event.ports.length > 0) {
+    const port2 = event.ports[0];
+    
+    // 监听来自 port1 的消息
+    port2.onmessage = (e) => {
+      console.log('iframe 收到了来自主页面的消息:', e.data);
+    };
+    
+    // 通过 port2 回发消息
+    port2.postMessage('iframe 收到啦，哈喽主页面！');
+  }
+});
+```
+
+**3. 利用其实现深拷贝**
+
+返回的是一个 Promise 因为消息传递是异步的。需要注意的是，因为 `MessageChannel` 内部使用的是**结构化克隆算法（Structured Clone Algorithm）**，它虽然支持循环引用以及 Date、RegExp、Map、Set 等对象，但它**无法克隆函数和 Symbol**（如果遇到会抛出 `DataCloneError` 异常或静默丢失）。
+
+> **对比 `JSON.parse(JSON.stringify(obj))` 的巨大优势：**
+> 虽然两者都不能克隆函数，但在处理复杂对象时，MessageChannel（结构化克隆）远比 JSON 方法强大：
+> 1. **完全支持循环引用**：`JSON.stringify` 遇到循环引用的对象会直接抛出报错（TypeError: Converting circular structure to JSON），而结构化克隆可以完美处理。
+> 2. **保留内置对象类型**：`JSON` 序列化会把 `Date` 强转成字符串，把 `RegExp`、`Map`、`Set` 变成 `{}`（空对象），把 `NaN` 和 `Infinity` 变成 `null`。而结构化克隆能原封不动地保留这些复杂对象的数据结构和类型。
+> 3. **保留 `undefined` 字段**：`JSON` 会把对象中值为 `undefined` 的键直接剔除丢失，而结构化克隆会保留该字段。
+
+```javascript
+function deepClone(obj) {
+  return new Promise((resolve) => {
+    const { port1, port2 } = new MessageChannel();
+    port2.onmessage = (event) => resolve(event.data);
+    port1.postMessage(obj);
+  });
+}
+
+// 使用
+const obj = { a: 1, b: { c: 2 } };
+obj.d = obj; // 循环引用
+deepClone(obj).then((cloneObj) => console.log(cloneObj));
+```
+
+### BroadcastChannel
+
+`BroadcastChannel` 接口允许同源的不同浏览器窗口、Tab 页、iframe 或 Worker 之间进行实时的广播通信。它建立了一个多对多的通信通道，所有连接到同一个频道的实例都可以发送和接收消息。
+
+#### 使用场景
+
+1. **多标签页状态同步**：例如用户在一个 Tab 页中登录或登出，其他打开的相同网站的 Tab 页可以通过 `BroadcastChannel` 收到通知并自动刷新状态，无需轮询服务器。
+2. **跨窗口数据共享**：在一些复杂的 Web 应用中（如多窗口的在线编辑器或数据大屏），可以将主控制窗口的数据实时同步到其他展示窗口。
+3. **同源离线资源的协调**：配合 Service Worker，在后台完成资源更新或数据同步后，通知所有打开的前端页面进行相应的 UI 更新。
+4. **统一的主题或配置切换**：用户在一个页面修改了系统主题色或多语言偏好，所有同源页面瞬间同步生效。
+
+#### 使用方法
+
+使用 `BroadcastChannel` 非常简单，只需要实例化时传入一个频道名称（String），并监听 `message` 事件即可。
+
+**注意（核心机制）：**
+- **必须同源同名**：只有同源（协议、域名、端口相同）且连接到**同一个频道名称**（如 `new BroadcastChannel('app_channel')`）的页面（Tab / iframe / Worker）才能互相通信。
+- **浏览器层面的事件总线**：你可以把它理解为浏览器内部实现的一个跨页面的 EventBus（事件总线）或发布-订阅模型。底层由浏览器内核在内存中维护这个频道的连接映射。
+- **不包含发送者自身**：调用 `bc.postMessage()` 的页面自身**不会**触发 `message` 事件，只有其他订阅了该频道的页面会收到。
+
+**1. 基本用法**
+
+```javascript
+// 在页面 A 中创建一个广播频道，频道名称为 "my_app_channel"
+const bc = new BroadcastChannel('my_app_channel');
+
+// 监听其他页面发来的消息
+bc.onmessage = (event) => {
+  console.log('接收到广播消息:', event.data);
+};
+
+// 发送消息到该频道的所有其他订阅者
+bc.postMessage('Hello, 另外的页面！');
+
+// 页面关闭或不再需要通信时，断开连接
+// bc.close();
+```
+
+**2. 在多标签页间同步登录状态**
+
+```javascript
+// 所有页面都连接到同一个频道
+const authChannel = new BroadcastChannel('auth_channel');
+
+// 监听登出事件
+authChannel.onmessage = (event) => {
+  if (event.data.action === 'logout') {
+    // 处理登出逻辑，例如跳回登录页
+    console.log('用户已在其他页面登出，本页面跟随登出');
+    window.location.href = '/login';
+  }
+};
+
+// 当用户在本页面主动点击登出按钮时
+function handleLogout() {
+  // 1. 广播登出消息给其他 Tab 页
+  authChannel.postMessage({ action: 'logout' });
+  // 2. 本页面执行跳转
+  window.location.href = '/login';
+}
+```
+
 
 
 # ES6中的新特性
