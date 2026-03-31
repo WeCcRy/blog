@@ -501,6 +501,8 @@ function App() {
 useMemo(func, dependencies)
 ```
 
+## \<\>和\<Fragment\>的区别
+\<\>是\<Fragment\>的语法糖，区别在于可以在\<Fragment\>上添加key
 
 
 # Redux
