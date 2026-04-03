@@ -72,6 +72,8 @@ a标签的的4个伪类，必须按照特定顺序编写，否则后编写的会
 - 光标属性
 - 列表布局属性(list-style)
 
+可以使用`inherit`属性来强制继承父元素的属性值，如`box-sizing: inherit`
+
 ## display的属性有哪些
 
 | **属性值**   | **作用**                                                   |
@@ -124,9 +126,11 @@ IE盒子模型，height和width对应content+padding+border
 
 ## 如何实现响应式布局
 
-通过视口宽度，高度vw,vh
+响应式的布局目的是为了一套代码适配多种设备，常用的方法有：
 
-使用padding-bottom百分比
+- 通过视口宽度，高度vw,vh
+
+- 使用padding-bottom百分比
 
 ```html
 <div class="container">
@@ -137,7 +141,7 @@ IE盒子模型，height和width对应content+padding+border
 <style>
   .container {
     position: relative;
-    width: 80%;
+    width: 100%;
     background: black;
     padding-bottom: calc(9/16 * 100%);  /*16:9,利用padding-bottom相对于宽度撑开*/
   }
@@ -153,7 +157,7 @@ IE盒子模型，height和width对应content+padding+border
 </style>
 ```
 
-js动态计算(计算消耗大)
+- js动态计算(计算消耗大)
 
 ```js
 function updateAspectRatio() {
@@ -347,11 +351,36 @@ em和rem：
 - 文本相对长度单位。相对于当前对象内文本的字体尺寸。如果当前行内文本的字体尺寸未被人为设置，则相对于浏览器的默认字体尺寸(默认16px)。(相对父元素的字体大小倍数)。
 -  rem是CSS3新增的一个相对单位，相对于根元素（html元素）的font-size的倍数。**作用**：利用rem可以实现简单的响应式布局，可以利用html元素中字体的大小与屏幕间的比值来设置font-size的值，以此实现当屏幕分辨率变化时让元素也随之变化。
 
+```css
+html { 
+  font-size: 62.5%; 
+} /* 16px × 62.5% = 10px, 一般会这样调整使得1rem对齐10px */
+```
+
 vw/vh：与百分比类似，但百分比更细化，有的属性甚至可以百分比自身(border-radius、translate)
 
 - vw：相对于视窗的宽度，视窗宽度是100vw；
 - vh：相对于视窗的高度，视窗高度是100vh；
 - vmin：vw和vh中的较小值；vmax：vw和vh中的较大值；
+
+vh 在移动端的显示会有问题， 因为移动端部分浏览器会在底部显示地址栏，实际的视口高度会比屏幕高度小，导致使用 vh 单位的元素可能会被地址栏遮挡，且 100vh 的页面会出现滚动条。有两种解决方法
+1. 使用 JavaScript 获取实际的视口高度，并将其设置为 CSS 变量，然后在 CSS 中使用该变量来定义元素的高度。
+
+```js
+function setRealVH() {
+  const vh = window.innerHeight * 0.01;
+  document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+// 初始加载时设置
+window.addEventListener('load', setRealVH);
+// 窗口大小改变或旋转屏幕时重新设置
+window.addEventListener('resize', setRealVH);
+
+/* CSS */
+.element {
+  height: calc(var(--vh, 1vh) * 100); // 取声明的--vh变量，如果没有则使用1vh作为回退值
+}
+```
 
 ## 什么是BFC
 
