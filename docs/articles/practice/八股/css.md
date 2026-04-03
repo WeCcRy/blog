@@ -209,7 +209,7 @@ x、y：元素左上角的坐标。
 
 统一修改css样式
 
-将修改的dom元素脱离文档流，修改后再返回文档流
+将修改的dom元素脱离文档流，修改后再返回文档流（触发局部重排）
 
 将修改的dom元素离线（display改为none）
 
@@ -307,6 +307,8 @@ display:-webkit-box;         // 作为弹性伸缩盒子模型显示。
       const observer = new IntersectionObserver(getYellow, { threshold: 0.9 }); // new一个IntersectionObserver对象，第一个参数是回调，第二个参数是options
   
       function getYellow(entries, observer) { // 第一个是传入的IntersectionObserverEntry对象，第二个参数是上面的observer
+          // 如果使用一个observe.observe()方法观察了多个元素，那么当其中一个元素进入可视区域时，回调函数就会被调用，并且entries参数中会包含所有被观察元素的状态信息。每个entry对象都包含了被观察元素的相关信息，如是否进入可视区域、交叉比例等。如果被观察的元素只有一个，那么entries参数中就只有一个entry对象，直接访问entries[0]即可获取该元素的状态信息。
+          // 如果是应对不同类型的，也可以new多个IntersectionObserver对象，分别观察不同类型的元素，并在回调函数中根据需要处理不同类型的元素状态信息。
           entries.forEach(entry => {
               entry.target.style.backgroundColor = "green"; // entry为一个实例对象，其中的target为目标元素
           });
@@ -342,7 +344,7 @@ z-index反应了元素的层级，z-index越大的，层级越靠上
 百分比：子元素的百分比计算是基于**参考系**进行的，可以自适应变化
 
 - 非绝对定位元素：参考系为父元素中的`content-box`
-- 绝对定位元素：参考系为最近定位元素中的`padding`部分(padding+content)，不包含border部分。计算`left`等内容的时候也是基于`padding`部分
+- 绝对定位元素：参考系为最近定位元素中的`padding`部分(padding+content)，不包含border部分。计算`left`等内容的时候也是基于`padding`部分（绝对定位需要贴到padding部分）
 
 除`height`外，其他内容(`width`,`padding`,`border`,`margin`)的计算都是基于参考系的`width`进行计算
 
@@ -523,7 +525,7 @@ flex属性是flex-grow，flex-shrink和flex-basis的简写，默认值为0 1 aut
 
 关于原理： 基本原理是通过媒体查询`（@media）`查询检测不同的设备屏幕尺寸做处理。
 
-关于兼容： 页面头部必须有meta声明的`viewport`。
+关于兼容： 页面头部必须有meta声明的`viewport`。 如：`<meta name="viewport" content="width=device-width, initial-scale=1">`
 
 ## 什么是清除浮动
 
@@ -544,6 +546,8 @@ flex属性是flex-grow，flex-shrink和flex-basis的简写，默认值为0 1 aut
      clear: both;     //清除浮动
    }
    ```
+
+有`clear:both`样式的元素，不允许左右存在浮动元素，必须在所有浮动元素的下方，于是父元素可以通过包裹该元素来避免浮动导致的问题（高度塌陷）
 
 ## 元素的层叠顺序
 
