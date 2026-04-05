@@ -1152,6 +1152,7 @@ ES6后不推荐使用_\_proto__来访问原型对象，建议使用Object.getPro
 
 ```js
 // apply将接受两个参数，第一个参数是this的指向，第二个参数是函数参数，一般是数组或者类数组的形式，该方法只能临时改变this
+// apply->array
 function fn(...args){
     console.log(this,args);
 }
@@ -1162,6 +1163,7 @@ fn.apply(obj,[1,2]); // ->Object,Array
 fn(1,2) // ->Window,Array
 
 // call本质和apply类似，不过接受多个参数，第一个参数是this指向，后续参数均是函数参数
+// call->comma
 function fn(...args){
     console.log(this,args);
 }
@@ -1246,12 +1248,12 @@ Promise实例存在三种状态：Pending(进行中)，Resolved(已完成)，Rej
 
 promise.then(成功的函数，失败的函数)，.then执行后返回的也是Promise对象，所以可以直接.then链式调用
 
-.then()中比如传入函数，如果传入的非函数，则会用上一个Promise的结果进行透传
+.then()中必须传入函数，如果传入的非函数，则会用上一个Promise的结果进行透传
 
 ```js
 Promise.resolve(1) // Promise的值为1
   .then(2)  // 非函数，透传，值为1
-  .then(Promise.resolve(3)) // 非函数，透传，值为1
+  .then(Promise.resolve(3)) // 非函数，透传，值为1（.then中只接受函数传递，其他情况都是值传递，.then(()=>Promise.resolve(3)这种情况会返回3)）
   .then(console.log) // 输出1
 ```
 
@@ -1261,7 +1263,7 @@ Promise.resolve(1) // Promise的值为1
 
 .finally方法不接受任何参数（内部不关心promise的状态，传入值都为undefined），也不会传递任何值（会将前面Promise的值透传下去）
 
-Promise.all()方法可以完成并行任务，它接收一个数组，数组的每一项都是一个`promise`对象。当数组中所有的`promise`的状态都达到`resolved`的时候，`all`方法的状态就会变成`resolved`，并返回一个包含所有resolve结果的数组，如果有一个状态变成了`rejected`，那么`all`方法的状态就会变成`rejected`,且会立刻终止
+Promise.all()方法可以完成并行任务，它接收一个数组，数组的每一项都是一个`promise`对象。当数组中所有的`promise`的状态都达到`resolved`的时候，`all`方法的状态就会变成`resolved`，并返回一个包含所有resolve结果的数组，如果有一个状态变成了`rejected`，那么`all`方法的状态就会变成`rejected`,且会立刻终止。如果传入的数组中有非`promise`对象的值，那么该值会被包装成一个`resolved`状态的`promise`对象。
 
 ```js
 // Promise手写
