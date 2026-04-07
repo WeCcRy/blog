@@ -120,22 +120,22 @@ export default {
                 {
                     text: "前端",
                     items: [
-                                {
-                                    text: "Vue3",
-                                    link: "/articles/frontend/vue",
-                                },
-                                {
-                                    text: "React18",
-                                    link: "/articles/frontend/React18",
-                                },
-                                {
-                                    text: "react原理",
-                                    link: "/articles/frontend/react原理",
-                                },
-                                {
-                                    text: "Typescript",
-                                    link: "/articles/frontend/typescript",
-                                },
+                        {
+                            text: "Vue3",
+                            link: "/articles/frontend/vue",
+                        },
+                        {
+                            text: "React18",
+                            link: "/articles/frontend/React18",
+                        },
+                        {
+                            text: "react原理",
+                            link: "/articles/frontend/react原理",
+                        },
+                        {
+                            text: "Typescript",
+                            link: "/articles/frontend/typescript",
+                        },
                     ],
                 },
             ],
@@ -170,6 +170,10 @@ export default {
                         {
                             text: "计算机网络",
                             link: "/articles/practice/八股/计算机网络",
+                        },
+                        {
+                            text: "webpack",
+                            link: "/articles/practice/八股/webpack",
                         },
                         {
                             text: "工程化",
