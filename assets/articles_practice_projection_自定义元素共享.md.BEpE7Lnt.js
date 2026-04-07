@@ -59,7 +59,7 @@ import{_ as i,c as a,o as n,ae as l}from"./chunks/framework.z0sZ1NT9.js";const p
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> */</span></span>
 <span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">const</span><span style="--shiki-light:#005CC5;--shiki-dark:#79B8FF;"> components</span><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;"> =</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;"> [</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">    {</span></span>
-<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">        name: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&#39;wy-test&#39;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">, </span><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">// 自定义元素标签名，将注册为 &lt;dia-test&gt; 元素</span></span>
+<span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">        name: </span><span style="--shiki-light:#032F62;--shiki-dark:#9ECBFF;">&#39;wy-test&#39;</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">, </span><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">// 自定义元素标签名，将注册为 &lt;wy-test&gt; 元素</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">        component: Test,  </span><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">// 对应的 Vue 组件</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">    },</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">]</span></span>
@@ -70,9 +70,9 @@ import{_ as i,c as a,o as n,ae as l}from"./chunks/framework.z0sZ1NT9.js";const p
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> * 功能：</span></span>
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> * 1. 将 Vue 组件转换为自定义元素（Custom Elements）</span></span>
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> * 2. 注册到浏览器的 customElements 注册表中</span></span>
-<span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> * 3. 返回组件对象供其他应用使用</span></span>
+<span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> * 3. 返回组件标签名映射对象供其他应用使用</span></span>
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> * </span></span>
-<span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> * </span><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">@returns</span><span style="--shiki-light:#6F42C1;--shiki-dark:#B392F0;"> {Promise&lt;{[key:string]:any}&gt;}</span><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> 返回包含所有注册组件的对象</span></span>
+<span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> * </span><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">@returns</span><span style="--shiki-light:#6F42C1;--shiki-dark:#B392F0;"> {Promise&lt;{[key:string]:string}&gt;}</span><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> 返回包含所有已注册自定义元素标签名的 Promise 对象</span></span>
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;"> */</span></span>
 <span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">export</span><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;"> default</span><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;"> async</span><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;"> function</span><span style="--shiki-light:#6F42C1;--shiki-dark:#B392F0;"> register</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">() {</span></span>
 <span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">    try</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;"> {</span></span>
@@ -103,7 +103,7 @@ import{_ as i,c as a,o as n,ae as l}from"./chunks/framework.z0sZ1NT9.js";const p
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">                /**</span></span>
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">                 * 将自定义元素注册到浏览器的 customElements 注册表</span></span>
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">                 * 检查元素是否已存在，避免重复注册导致错误</span></span>
-<span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">                 * 注册后可以在任何地方使用 &lt;dia-test&gt; 标签</span></span>
+<span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">                 * 注册后可以在任何地方使用 &lt;wy-test&gt; 标签</span></span>
 <span class="line"><span style="--shiki-light:#6A737D;--shiki-dark:#6A737D;">                 */</span></span>
 <span class="line"><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">                if</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;"> (</span><span style="--shiki-light:#D73A49;--shiki-dark:#F97583;">!</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">customElements.</span><span style="--shiki-light:#6F42C1;--shiki-dark:#B392F0;">get</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">(item.name)) {</span></span>
 <span class="line"><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">                    customElements.</span><span style="--shiki-light:#6F42C1;--shiki-dark:#B392F0;">define</span><span style="--shiki-light:#24292E;--shiki-dark:#E1E4E8;">(item.name, customElement);</span></span>
