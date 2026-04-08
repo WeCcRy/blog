@@ -678,6 +678,57 @@ const memoComp = memo(({ value }) => {
 - 子组件使用 `React.memo` 包裹，并且父组件传递了一个函数作为 props。使用 `useCallback` 可以确保在父组件重新渲染时，传递给子组件的函数引用保持不变，从而避免子组件不必要的重新渲染。
 - 函数作为依赖项传入 `useEffect`、`useMemo` 或其他 `useCallback` 时，使用 `useCallback` 可以确保依赖项的稳定性，避免因函数引用变化而导致的副作用重新执行。
 
+## 事件代理机制
+
+React 事件代理机制总结
+
+核心结论
+
+React 事件系统本质是一个增强版的事件委托，把整棵组件树的事件统一代理到 root 上，触发时再沿着 fiber 树路径分发。
+
+一、基础机制
+
+onClick 不是真正绑在 DOM 上的
+
+
+你写的所有 onClick、onClickCapture 等 只是存在对应的 fiber 节点上 真正的监听器只有两个，绑在 root 上：  root.addEventListener('click', handleCapture, true)   // 代理所有捕获事件 root.addEventListener('click', handleBubble, false)   // 代理所有冒泡事件
+
+触发时按路径分发
+
+用户点击 button     ↓ 浏览器通知 root 的监听器     ↓ React 通过 nativeEvent.target 找到 button 的 fiber     ↓ 沿着 fiber.return 向上收集路径（从内到外）     [button, inner, outer, root]     ↓ 捕获阶段：反向遍历路径，依次触发 onClickCapture（从外到内） 冒泡阶段：正向遍历路径，依次触发 onClick（从内到外）
+
+注意：浏览器捕获是从外到内的，但 React 收集路径是从 target fiber 向上收集的（从内到外），最终通过遍历方向来保证触发顺序正确。
+
+二、捕获和冒泡的顺序
+
+
+捕获和冒泡的顺序完全依赖浏览器原生机制 不是优先级队列，React 不需要额外判断：  root.addEventListener('click', handleCapture, true)   → 浏览器捕获阶段触发 → 处理 onClickCapture  root.addEventListener('click', handleBubble, false)   → 浏览器冒泡阶段触发 → 处理 onClick  浏览器原生保证捕获先于冒泡 React 只需要在对应监听器里处理对应的合成事件  // 优先级队列是 Fiber 调度的概念 // 是 setState 之后的事，和事件触发顺序完全无关
+
+三、React 16 vs React 17
+
+React 16（委托在 document）
+
+事件流： document捕获 → 原生事件 → document冒泡（合成事件在这里处理）  onClick 必须等事件冒泡到 document 才触发 button 上没有任何原生监听器 所以 wrapper 在中途 stopPropagation 事件到不了 document → 合成事件完全收不到 ❌
+
+React 17+（委托在 root）
+
+
+事件流： document捕获 → root捕获(onClickCapture) → 原生捕获 → 原生冒泡 → root冒泡(onClick) → document冒泡  合成事件在 root 就处理完，不依赖冒泡到 document root 外部的 stopPropagation 不再影响合成事件 ✅ 多个 React 实例各自代理自己的 root，互不干扰 ✅
+
+四、stopPropagation 的影响
+
+
+React 16：   root 内外任何地方截断  → 合成事件失效 ❌   （合成事件依赖冒泡到 document，中途截断就完全失效）  React 17+：   root 内部截断  → 合成事件失效（符合预期）⚠️   root 外部截断  → 合成事件不受影响 ✅  不会踩坑的情况：   ✅ 全程只用 React 合成事件   ✅ 不混用原生 addEventListener   ✅ 不在原生事件里 stopPropagation   → React 16 和 17 对你完全无感知
+
+五、完整流程
+
+用户点击 button     ↓ 浏览器捕获（从外到内）     document → root → outer → inner → button     ↓ root 捕获监听器触发     → 从 button fiber 向上收集路径     → 反向遍历，触发所有 onClickCapture ✅     ↓ 原生捕获继续（outer → inner → button）     ↓ 浏览器冒泡（从内到外）     button → inner → outer → root     ↓ root 冒泡监听器触发     → 从 button fiber 向上收集路径     → 正向遍历，触发所有 onClick ✅     ↓ 冒泡继续到 document     ↓ onClick 里如果有 setState     → 才进入 Fiber 调度，才涉及优先级
+
+六、一句话记忆
+
+
+事件代理：  2 个监听器代理整棵树，onClick 不是真正绑在 DOM 上 收集路径：  从 target fiber 向上收集，再靠遍历方向区分捕获/冒泡 捕获冒泡：  靠浏览器原生机制区分，与优先级队列无关 React 16：  委托在 document，中途截断合成事件就失效 React 17：  委托在 root，不受外部干扰，支持微前端
+
 
 # Redux
 

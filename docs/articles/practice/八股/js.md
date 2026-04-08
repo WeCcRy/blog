@@ -725,9 +725,158 @@ function handleLogout() {
 }
 ```
 
+## Service Worker
+
+### 一、是什么？
+
+Service Worker 是运行在浏览器背后的独立线程，充当浏览器与服务器之间的**透明中间人**，可以完全控制网络请求。
+
+**网络请求对比：**
+
+- **没有 SW：** 页面 ──────────────────→ 服务器
+- **有 SW：** 页面 ──→ Service Worker ──→ 服务器
+  - *注：有缓存直接返回，不经过服务器。*
+
+### 二、核心作用
+
+| 作用             | 说明                                              |
+| :--------------- | :------------------------------------------------ |
+| **加速页面加载** | JS/CSS/图片等静态资源从本地缓存读取，无需等待网络 |
+| **离线访问**     | 断网时页面依然可以打开（PWA 核心能力）            |
+| **节省流量**     | 静态资源不重复下载                                |
+| **版本管理**     | 通过文件哈希自动识别资源是否需要更新              |
+| **请求拦截**     | 可自定义任意请求的处理逻辑                        |
+
+### 三、使用前提
+
+1.  **协议限制**：必须使用 HTTPS 协议（localhost 开发环境除外）。
+2.  **浏览器支持**：IE 不支持，其他主流浏览器 2018 年后全部支持。
+3.  **自动化生成**：SW 文件无需手写，通常由构建工具（如 Workbox）自动生成。
+4.  **生效时机**：初次访问时 SW 尚未安装，缓存从**第二次访问**起才生效。
+
+### 四、访问流程对比
+
+#### 1. 初次访问（安装阶段）
+1.  用户初次访问页面。
+2.  浏览器正常请求服务器（此时 SW 还不存在）。
+3.  页面加载完成，JS 执行 `navigator.serviceWorker.register('/sw.js')`。
+4.  浏览器后台下载并安装 SW（`install` 事件）并缓存资源。
+5.  SW 激活（`activate` 事件）。
+*⚠️ 注意：本次访问 SW 不会拦截任何请求。*
+
+#### 2. 再次访问（拦截阶段）
+1.  用户第二次访问页面。
+2.  SW 已激活，开始拦截所有请求。
+3.  **命中缓存**：直接返回缓存 ✅（极快）。
+4.  **未命中缓存**：走正常的网络请求。
 
 
-# ES6中的新特性
+#### 3. 访问状态汇总
+
+| 访问次数     | SW 状态        | 请求走向            | 速度   |
+| :----------- | :------------- | :------------------ | :----- |
+| 第一次       | 未安装         | 直接走网络          | 正常   |
+| 第一次访问后 | 系统后台安装中 | 直接走网络          | 正常   |
+| 第二次起     | 已激活         | SW 拦截，优先走缓存 | 极快 ⚡ |
+
+### 五、基本使用方法
+
+#### 1. 注册 SW（页面 JS）
+```javascript
+if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () {
+        navigator.serviceWorker
+            .register('/sw.js')
+            .then(reg => console.log('注册成功', reg.scope))
+            .catch(err => console.log('注册失败', err))
+    })
+}
+```
+
+#### 2. 编写 SW 脚本（sw.js）
+SW 的核心生命周期：`install`（安装并缓存）→ `activate`（激活并清理旧缓存）→ `fetch`（拦截请求）。
+
+```javascript
+const CACHE_NAME = 'my-cache-v1'
+const CACHE_URLS = ['/index.html', '/main.css', '/main.js']
+
+// 1. 安装：缓存静态资源
+self.addEventListener('install', event => {
+    event.waitUntil(
+        caches.open(CACHE_NAME)
+              .then(cache => cache.addAll(CACHE_URLS))
+    )
+    self.skipWaiting() // 跳过等待，立即激活
+})
+
+// 2. 激活：清理旧缓存
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys().then(keys =>
+            Promise.all(
+                keys.filter(key => key !== CACHE_NAME)
+                    .map(key => caches.delete(key))
+            )
+        )
+    )
+})
+
+// 3. 拦截请求：缓存优先策略
+self.addEventListener('fetch', event => {
+    event.respondWith(
+        caches.match(event.request).then(cached => {
+            return cached || fetch(event.request)
+        })
+    )
+})
+```
+
+### 六、常见缓存策略
+
+| 策略              | 逻辑                     | 适用场景                |
+| :---------------- | :----------------------- | :---------------------- |
+| **Cache First**   | 优先缓存，没有再请求网络 | JS、CSS、图片等静态资源 |
+| **Network First** | 优先网络，失败再用缓存   | 频繁更新的接口数据      |
+| **Cache Only**    | 只用缓存，不走网络       | 完全离线场景            |
+| **Network Only**  | 只走网络，不缓存         | 实时性要求极高的请求    |
+
+### 七、工程化方案（Workbox）
+
+在实际项目中，SW 文件通常由 `workbox-webpack-plugin` 等工具自动生成，能够自动处理文件的 Hash 值。
+
+**Webpack 配置示例：**
+```javascript
+const { GenerateSW } = require('workbox-webpack-plugin')
+
+module.exports = {
+    plugins: [
+        new GenerateSW({
+            cacheId: 'my-app',
+            // 自动收集所有打包产物，生成 precache 列表
+        })
+    ]
+}
+```
+
+### 八、更新机制
+当业务代码修改（Hash 变化）时，构建工具会自动更新 `service-worker.js` 中的文件列表。浏览器检测到 `sw.js` 变化后：
+1.  下载新 SW 文件。
+2.  执行安装并缓存新资源。
+3.  通过 `skipWaiting()` 立即激活，清理旧缓存，新资源随之生效。
+
+### 九、注意事项
+1.  **无法操作 DOM**：SW 运行在独立线程，需通过 `postMessage` 与页面通信。
+2.  **HTTPS 限制**：生产环境必须使用 HTTPS。
+3.  **生效延迟**：首次访问不生效，第二次访问起才拦截。
+
+### 十、浏览器支持
+- **支持**：Chrome (2015+), Firefox (2016+), Safari (2018+), Edge (2018+)。
+- **不支持**：IE（全版本）。
+
+---
+
+
+# ES6 中的新特性
 
 ## let，const，var的区别
 
