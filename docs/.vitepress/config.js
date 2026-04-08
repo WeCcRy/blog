@@ -194,6 +194,10 @@ export default {
                             text: "echarts联动其他组件",
                             link: "/articles/practice/projection/echarts联动其他组件",
                         },
+                        {
+                            text: "自定义触点实现",
+                            link: "/articles/practice/projection/自定义触点组件",
+                        }
                     ],
                 },
             ],
