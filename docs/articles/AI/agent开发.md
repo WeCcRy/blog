@@ -321,9 +321,9 @@ graph TD
 
 ---
 
-## 3.12 TTS 语音播报实现
+### 3.12 TTS 语音播报实现
 
-### 3.12.1 入口与触发时机
+#### 3.12.1 入口与触发时机
 
 TTS 主入口在 `useMessageQueue` 的 `onRecieveMessage`：
 
@@ -337,7 +337,7 @@ TTS 主入口在 `useMessageQueue` 的 `onRecieveMessage`：
 
 前置拦截条件：静音（`mute`）或页面未初始化自动提问时不播报。
 
-### 3.12.2 队列与增量播报机制（核心）
+#### 3.12.2 队列与增量播报机制（核心）
 
 目标：UI 每帧都在刷新文本，但 TTS 只读“还没读过的新内容”，并尽量按完整短句读。核心状态：
 
@@ -355,18 +355,18 @@ TTS 主入口在 `useMessageQueue` 的 `onRecieveMessage`：
 
 按标点裁切（`trimPunctuation()`）可优先读取完整短句，避免碎读。
 
-### 3.12.3 播放循环与回调
+#### 3.12.3 播放循环与回调
 
 - `playLoop()` / `playLoopNativeTTS()` 从队列取一条并调用 Native TTS 播放。
 - 通过回调（`start`/`end`/`stop`）驱动下一条播放，并发布 `speechTTSCurrentId` 供 `MessageList` 订阅显示播放态。
 
-### 3.12.4 停止、撤回、中断与清理
+#### 3.12.4 停止、撤回、中断与清理
 
 - 手动中断回答：`interruptOutputMessage` 会先 `speechTTSStop()`，立即停播。
 - 消息撤回：收到 `withdraw` 后调用 `speechTTSRemoveTask(msgIdentifier)`，剔除待播/在播队列。
 - 会话重建/页面卸载：调用 `speechTTSStop()` 清空队列。
 
-### 3.12.5 双 SDK 兼容策略
+#### 3.12.5 双 SDK 兼容策略
 
 `useSpeechTTS` 会按端和版本选择实现：部分环境使用在线 `onlineTTS`，部分支持的环境使用端侧或融合 `nativeTTS`。对外暴露统一接口 `SpeechTTSManager`（`playAsync`/`playSync`/`stop`/`removeTask`）。
 

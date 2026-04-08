@@ -218,7 +218,7 @@ function App() {
 
 ## forwardRef 与 useImperativeHandle
 
-用于在函数组件中向父组件暴露内部 DOM 或自定义实例方法，常与 `forwardRef` 配合使用。
+用于在函数组件中向父组件暴露内部 DOM 或自定义实例方法，常与 `forwardRef` 配合使用(react19以前，react19以后可以直接传入ref而不使用forwardRef)。
 
 简单示例（`forwardRef` 转发 ref 到子组件的 DOM）：
 
@@ -453,6 +453,15 @@ useEffect(()=>{
 })
 ```
 
+## useLayoutEffect
+
+与useEffect类似，区别在于useLayoutEffect会在DOM更新完成后立即执行（会阻塞浏览器绘制），而useEffect会在DOM更新完成后延迟执行（等浏览器空闲时）。因此，如果需要在DOM更新后立即读取布局信息或同步执行副作用，应该使用useLayoutEffect。
+
+渲染 → DOM更新 → useLayoutEffect → 浏览器绘制 → useEffect
+
+如果需要在使用useEffect的时候，更新了组件的状态，可能会重新渲染组件，导致页面闪烁，这时可以使用useLayoutEffect来避免这种情况，因为它会在DOM更新后立即执行，可以同步更新状态，避免不必要的重新渲染。
+
+
 ## 自定义Hook
 
 用来将可复用的代码包装起来
@@ -494,7 +503,7 @@ function App() {
 
 ## useMemo
 
-计算属性
+计算属性，用于缓存结果，当依赖项发生变化时才会重新计算，否则会直接返回之前缓存的结果，避免不必要的计算，提高性能。
 
 ```
 // 第一个参数是计算函数，需要返回计算后的值；第二个参数则是依赖项，即当依赖项变更后再重新计算
@@ -503,6 +512,59 @@ useMemo(func, dependencies)
 
 ## \<\>和\<Fragment\>的区别
 \<\>是\<Fragment\>的语法糖，区别在于可以在\<Fragment\>上添加key
+
+
+## memo组件
+
+一般情况下，父组件的重新渲染会导致子组件的重新渲染，即使子组件的props没有发生变化，这时可以使用memo组件来优化性能，memo组件会对比前后props的变化（浅比较），如果没有变化则不会重新渲染子组件。
+
+基本用法：`const MemoizedComponent = memo(SomeComponent, arePropsEqual?)`,其中`someComponent`是要包装的组件，`arePropsEqual`是一个可选的函数，用于自定义比较逻辑，默认情况下，memo会进行浅比较(Object.is)。
+
+自定义比较逻辑：
+`memo` 接受第二个参数 `arePropsEqual(prevProps, nextProps)`。
+- 返回 `true`：不重新渲染（props 相等）
+- 返回 `false`：重新渲染（props 不相等）
+- 注意：这与 `shouldComponentUpdate` 的返回值逻辑相反。
+
+```javascript
+const MyComponent = memo(Chart, (prevProps, nextProps) => {
+  // 可以在这里实现深比较，或者只比较特定的某些 props
+  return prevProps.data.id === nextProps.data.id;
+});
+```
+
+两种用法：
+```js
+// 1. 使用React.memo
+import React from 'react'
+const memoComp = React.memo(({ value }) => {
+  return <div>{value}</div>
+})
+// 2. 使用memo函数
+import { memo } from 'react'
+const memoComp = memo(({ value }) => {
+  return <div>{value}</div>
+})
+```
+
+什么场景下使用memo组件：
+- 父组件频繁更新，但子组件的props不经常变化
+- 子组件的渲染比较复杂，性能开销较大
+- 子组件的props是基本类型
+- 子组件的props是对象类型，但父组件每次更新时都会传入同一个对象（即引用地址不变）
+- 一般来说，渲染item的组件推荐使用memo
+
+什么情况下不适合使用memo组件：
+- 父组件更新不频繁，或者子组件的渲染开销较小（比较的开销可能大于渲染开销）
+- 子组件的props几乎总是变化（例如父组件传入了未经过 `useCallback` 或 `useMemo` 优化的引用类型数据）
+
+## useCallback
+
+`useCallback` 用于缓存函数，返回一个 memoized 版本的回调函数，该函数仅在依赖项发生变化时才会更新。它的作用是避免在组件重新渲染时创建新的函数实例，从而优化性能。
+
+使用场景：
+- 子组件使用 `React.memo` 包裹，并且父组件传递了一个函数作为 props。使用 `useCallback` 可以确保在父组件重新渲染时，传递给子组件的函数引用保持不变，从而避免子组件不必要的重新渲染。
+- 函数作为依赖项传入 `useEffect`、`useMemo` 或其他 `useCallback` 时，使用 `useCallback` 可以确保依赖项的稳定性，避免因函数引用变化而导致的副作用重新执行。
 
 
 # Redux
