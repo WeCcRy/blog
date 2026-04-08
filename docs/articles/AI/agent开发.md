@@ -368,7 +368,19 @@ TTS 主入口在 `useMessageQueue` 的 `onRecieveMessage`：
 
 #### 3.12.5 双 SDK 兼容策略
 
-`useSpeechTTS` 会按端和版本选择实现：部分环境使用在线 `onlineTTS`，部分支持的环境使用端侧或融合 `nativeTTS`。对外暴露统一接口 `SpeechTTSManager`（`playAsync`/`playSync`/`stop`/`removeTask`）。
+`useSpeechTTS` 会按端和版本选择实现：部分环境使用在线 `onlineTTS`，部分支持的环境使用端侧或融合 
+`nativeTTS`。对外暴露统一接口 `SpeechTTSManager`（`playAsync`/`playSync`/`stop`/`removeTask`）。
+
+#### 3.13 页面自动下滚
+
+首先是一个UI组件MessageList，内部渲染了所有的对话。
+通过一个hook来维护滚动功能，主要来判断是否可以进行滚动，何时进行滚动
+hook作为messagelist的provider，向下传递ref，挂在messageList上，hook可以拿到messagelist的ref从而触发messagelist里的方法
+当messagelist中收到新消息了之后，执行hook传下来的方法（修改滚动状态的方法），把hook中维持的允许滚动状态置为true，同时通过messageList的ref，触发自身的滚动事件
+
+#### 3.13.1 如何判断页面不在底部
+
+会在MessageList中在最后添加一个占位元素，当页面滚动时，判断占位元素是否在可视区，如果不在占位区，则弹出一个提示用户滚动到底部的按钮，点击后页面滚动到底部
 
 ---
 

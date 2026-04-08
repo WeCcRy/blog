@@ -135,9 +135,121 @@ return (
 )
 ```
 
-如果组件不是通过函数返回实现的，而是通过class实现的，则需要通过this.setState方法更新，此时setState非全量更新，而是局部更新(和老的state进行合并,合并第一层的属性)
+如果组件不是通过函数返回实现的，而是通过 class 实现的，则需要通过 `this.setState` 方法更新。此时 `setState` 非全量更新，而是局部更新（和旧的 state 进行合并，合并第一层的属性）。
+
+### 一、setState 的执行流程
+
+1.  **调用 `setState`**：将更新动作放入队列。
+2.  **决定处理时机**：根据 React 版本和场景决定是“同步”还是“异步（批处理）”。
+3.  **处理队列**：合并更新，触发 `render`。
+
+### 二、React 17 及以前：受控的批处理
+
+#### 1. 实现原理
+
+React 17 的批处理本质上是通过**同步代码包裹**（Sync Logic Wrap）实现的。React 会在调用你的事件处理函数前，通过 `batchedUpdates` 开关将全局标志位设为 `true`。
+
+*   **同步流程**：整个“收集 setState -> 执行你的函数 -> 触发 render”的过程都是在同一个**同步宏任务**中完成的。
+*   **同步局限**：由于它是靠同步执行流中 `finally` 块来关闭开关并触发渲染的，一旦遇到 `setTimeout` 等异步操作，这段同步逻辑早已结束。
+
+```javascript
+// setState 核心逻辑 (React 17)
+function setState(newState) {
+  if (isBatchingUpdates) {
+    updateQueue.push(newState); // 批处理：收集更新
+  } else {
+    // 立即执行同步更新 + 同步 render() (导致多次渲染断点)
+  }
+}
+
+// 批量更新的开关 (同步包裹)
+function batchedUpdates(fn) {
+  isBatchingUpdates = true;    
+  try {
+    fn();                      // 同步执行你的逻辑
+  } finally {
+    isBatchingUpdates = false; 
+    flushUpdateQueue();        // 同步触发一次 render
+  }
+}
+```
+
+#### 2. 同步 vs 异步场景
+
+*   **异步（批量更新）**：React 能接管的地方（如合成事件、生命周期）。
+*   **同步（立即更新）**：React 无法接管的地方（如 `setTimeout`、原生 DOM 事件）。
+
+**为什么 `setTimeout` 会逃脱？**
+当 `setTimeout` 的回调执行时，`batchedUpdates` 的 `finally` 块早已执行完毕，`isBatchingUpdates` 已被重置为 `false`，导致更新变为同步。
+
+#### 3. React 17 场景总结
+
+| 场景                         | `isBatchingUpdates` | 表现               | `render` 次数 |
+| :--------------------------- | :------------------ | :----------------- | :------------ |
+| 合成事件（`onClick` 等）     | `true`              | 异步，批量合并     | 1 次          |
+| 生命周期                     | `true`              | 异步，批量合并     | 1 次          |
+| `setTimeout` / `setInterval` | `false`             | **同步，立即更新** | 多次          |
+| 原生 DOM 事件                | `false`             | **同步，立即更新** | 多次          |
+
+### 三、React 18：自动批处理 (Automatic Batching)
+
+#### 1. 实现原理
+
+React 18 彻底抛弃了同步标志位，改为将“处理队列”动作调度到**异步微任务**中执行：
+
+*   **异步性**：无论在何处调用 `setState`，React 都会先将更新放入队列，并触发一个微任务（Microtask）。
+*   **全场景自动合并**：由于微任务会在“当前宏任务（如点击事件、定时器回调）的所有同步代码跑完后”才执行，因此无论 `setState` 在哪里调用，都能实现异步合并。
+
+```javascript
+let updateQueue = [];
+let isFlushScheduled = false; // 是否已调度过微任务
+
+function setState(newState) {
+  updateQueue.push(newState);  // 永远先放入队列，不立即执行
+
+  if (!isFlushScheduled) {
+    isFlushScheduled = true;
+    // 调度异步微任务 (核心变更：从同步变异步)
+    queueMicrotask(() => {
+      isFlushScheduled = false;
+      flushQueue();            // 在这里统一处理合并，触发一次 render
+    });
+  }
+}
+```
+
+#### 2. 为什么微任务能自动合并？
+
+微任务的特性是：**同步代码全部执行完，才会执行微任务**。
+即便在 `setTimeout` 中，多次 `setState` 也会先放入队列，等该次宏任务的同步代码跑完后，再由微任务统一处理。
+
+#### 3. React 18 场景总结
+
+| 场景                         | 表现               | `render` 次数 |
+| :--------------------------- | :----------------- | :------------ |
+| 合成事件                     | 批量更新           | 1 次          |
+| 生命周期                     | 批量更新           | 1 次          |
+| `setTimeout` / `setInterval` | **✅ 自动批量更新** | 1 次          |
+| 原生 DOM 事件                | **✅ 自动批量更新** | 1 次          |
+
+### 四、核心对比总结
+
+| 特性                | React 17                   | React 18                     |
+| :------------------ | :------------------------- | :--------------------------- |
+| **控制方式**        | `isBatchingUpdates` 标志位 | 微任务调度                   |
+| **`setState` 本身** | 可能同步执行               | **永远是异步的**（放入队列） |
+| **`render` 触发**   | 可能立即触发               | 永远通过微任务异步触发       |
+| **`setTimeout`**    | ❌ 同步更新                 | ✅ 自动批量更新               |
+| **原生事件**        | ❌ 同步更新                 | ✅ 自动批量更新               |
+| **批处理范围**      | 仅 React 能接管的地方      | **全场景覆盖**               |
+
+### 五、一句话总结
+
+*   **React 17**：通过手动开关标志位，利用同步代码块的包裹来实现批处理，`setTimeout` 等场景因脱离包裹环境而失效。
+*   **React 18**：利用事件循环机制（微任务），确保无论在何处调用，都会在当前同步代码执行完后才进行合并更新。
 
 ## 样式引入
+
 
 ```react
 // 1.行内样式
