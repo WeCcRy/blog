@@ -176,6 +176,10 @@ export default {
                             link: "/articles/practice/八股/webpack",
                         },
                         {
+                            text: "vite",
+                            link: "/articles/practice/八股/vite",
+                        },
+                        {
                             text: "工程化",
                             link: "/articles/practice/八股/工程化",
                         },
