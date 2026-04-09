@@ -1,0 +1,439 @@
+<!doctype html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>虚拟列表 Demo</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #f4f1ea;
+            --panel: #fffaf2;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --line: #e6dccb;
+            --accent: #b45309;
+            --accent-soft: rgba(180, 83, 9, 0.12);
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background:
+                radial-gradient(circle at top left, rgba(180, 83, 9, 0.14), transparent 32%),
+                radial-gradient(circle at top right, rgba(31, 41, 55, 0.08), transparent 28%),
+                var(--bg);
+            color: var(--text);
+        }
+
+        .page {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }
+
+        .hero {
+            display: grid;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .eyebrow {
+            display: inline-flex;
+            align-self: start;
+            padding: 6px 10px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.6);
+            color: var(--accent);
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+
+        h1 {
+            margin: 0;
+            font-size: clamp(30px, 4vw, 48px);
+            line-height: 1.05;
+        }
+
+        .desc {
+            margin: 0;
+            max-width: 820px;
+            color: var(--muted);
+            font-size: 15px;
+            line-height: 1.7;
+        }
+
+        .stats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 18px 0 24px;
+        }
+
+        .stat {
+            min-width: 170px;
+            padding: 14px 16px;
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.68);
+            backdrop-filter: blur(8px);
+        }
+
+        .stat .label {
+            display: block;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .stat .value {
+            display: block;
+            margin-top: 6px;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .layout {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) 320px;
+            gap: 20px;
+        }
+
+        .panel {
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            background: rgba(255, 250, 242, 0.88);
+            box-shadow: 0 18px 60px rgba(31, 41, 55, 0.08);
+            overflow: hidden;
+        }
+
+        .panel-header {
+            padding: 16px 18px;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .panel-header h2 {
+            margin: 0;
+            font-size: 18px;
+        }
+
+        .panel-header .hint {
+            color: var(--muted);
+            font-size: 13px;
+        }
+
+        .virtual-list {
+            position: relative;
+            height: 72vh;
+            overflow: auto;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0.1));
+        }
+
+        .virtual-spacer {
+            display: block;
+            width: 1px;
+            pointer-events: none;
+        }
+
+        .virtual-list::-webkit-scrollbar {
+            width: 12px;
+        }
+
+        .virtual-list::-webkit-scrollbar-thumb {
+            background: rgba(180, 83, 9, 0.24);
+            border-radius: 999px;
+            border: 3px solid transparent;
+            background-clip: content-box;
+        }
+
+        .virtual-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .virtual-item {
+            position: absolute;
+            top: 0;
+            left: 16px;
+            right: 16px;
+            padding: 14px 16px 16px;
+            border: 1px solid rgba(230, 220, 203, 0.9);
+            border-radius: 18px;
+            background: white;
+            box-shadow: 0 8px 22px rgba(31, 41, 55, 0.06);
+            will-change: transform;
+        }
+
+        .virtual-item h3 {
+            margin: 0 0 8px;
+            font-size: 16px;
+        }
+
+        .meta {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 10px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .pill {
+            padding: 4px 8px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .virtual-item p {
+            margin: 0;
+            line-height: 1.7;
+            color: #374151;
+        }
+
+        .sidebar {
+            padding: 16px 18px 18px;
+        }
+
+        .sidebar h3 {
+            margin: 0 0 12px;
+            font-size: 16px;
+        }
+
+        .sidebar p {
+            margin: 0 0 12px;
+            color: var(--muted);
+            line-height: 1.7;
+            font-size: 14px;
+        }
+
+        .code {
+            padding: 14px;
+            border-radius: 16px;
+            background: #111827;
+            color: #e5e7eb;
+            font-family: ui-monospace, SFMono-Regular, Consolas, Monaco, monospace;
+            font-size: 12px;
+            line-height: 1.6;
+            overflow: auto;
+            white-space: pre;
+        }
+
+        @media (max-width: 980px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .virtual-list {
+                height: 66vh;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="page">
+        <section class="hero">
+            <span class="eyebrow">Virtual List Demo</span>
+            <h1>不定高虚拟列表</h1>
+            <p class="desc">
+                这个页面演示的是“复用固定 DOM 池 + 替换内容 + 不定高测量”的虚拟列表实现。
+                你可以直接滚动左侧列表，观察节点不会无限增加，但内容会不断复用和重排。
+            </p>
+        </section>
+
+        <section class="stats">
+            <div class="stat">
+                <span class="label">总数据量</span>
+                <span class="value" id="totalCount">0</span>
+            </div>
+            <div class="stat">
+                <span class="label">复用节点数</span>
+                <span class="value" id="poolCount">0</span>
+            </div>
+            <div class="stat">
+                <span class="label">可视区高度</span>
+                <span class="value" id="viewportHeight">0</span>
+            </div>
+        </section>
+
+        <div class="layout">
+            <section class="panel">
+                <div class="panel-header">
+                    <h2>滚动区域</h2>
+                    <div class="hint">只渲染当前可见项，滚动时替换内容</div>
+                </div>
+                <div id="list" class="virtual-list"></div>
+            </section>
+
+            <aside class="panel sidebar">
+                <h3>实现要点</h3>
+                <p>1. `pool` 是固定数量的 DOM 节点，不会随着数据量增长。</p>
+                <p>2. `translateY` 负责把节点移动到它应该出现的位置。</p>
+                <p>3. 不定高 item 通过 `getBoundingClientRect()` 测量后回写前缀和。</p>
+                <p>4. 这里用的是“替换节点内容”，不是向列表里持续 `push` 新节点。</p>
+                <div class="code">scrollTop -> 二分查找 -> startIndex -> 复用 DOM -> 替换内容 -> 测量高度</div>
+            </aside>
+        </div>
+    </div>
+
+    <script>
+        const container = document.getElementById('list');
+        const totalCountEl = document.getElementById('totalCount');
+        const poolCountEl = document.getElementById('poolCount');
+        const viewportHeightEl = document.getElementById('viewportHeight');
+
+        const data = Array.from({ length: 200 }, (_, index) => ({
+            id: index + 1,
+            title: `第 ${index + 1} 条数据`,
+            tag: index % 2 === 0 ? '文章' : '评论',
+            content: '这里是一段比较长的内容，用来模拟不定高 item。'.repeat((index % 5) + 1),
+        }));
+
+        const bufferCount = 3;
+        const visibleCount = 10;
+        const poolSize = visibleCount + bufferCount * 2;
+
+        const pool = [];
+        const itemHeights = data.map(() => 0);
+        const prefixHeights = data.map(() => 0);
+        const defaultHeight = 132;
+        let rerenderPending = false;
+        const spacer = document.createElement('div');
+        spacer.className = 'virtual-spacer';
+        container.appendChild(spacer);
+
+        totalCountEl.textContent = String(data.length);
+        poolCountEl.textContent = String(poolSize);
+        viewportHeightEl.textContent = `${Math.round(container.getBoundingClientRect().height)}px`;
+
+        for (let i = 0; i < poolSize; i++) {
+            const item = document.createElement('div');
+            item.className = 'virtual-item';
+            pool.push(item);
+            container.appendChild(item);
+        }
+
+        function renderItem(node, itemData, index) {
+            node.dataset.index = String(index);
+            node.innerHTML = `
+          <h3>${itemData.title}</h3>
+          <div class="meta">
+            <span class="pill">${itemData.tag}</span>
+            <span>#${itemData.id}</span>
+            <span>预计高度会变化</span>
+          </div>
+          <p>${itemData.content}</p>
+        `;
+        }
+
+        function measureItem(node, index) {
+            const height = node.getBoundingClientRect().height;
+            if (itemHeights[index] === height) return;
+
+            itemHeights[index] = height;
+            updatePrefixHeights();
+            scheduleRender();
+        }
+
+        function updatePrefixHeights() {
+            let sum = 0;
+            for (let i = 0; i < data.length; i++) {
+                prefixHeights[i] = sum;
+                sum += itemHeights[i] || defaultHeight;
+            }
+            spacer.style.height = `${sum}px`;
+        }
+
+        function binarySearch(scrollTop) {
+            let left = 0;
+            let right = data.length - 1;
+
+            while (left <= right) {
+                const middle = Math.floor((left + right) / 2);
+                const top = prefixHeights[middle];
+                const bottom = top + (itemHeights[middle] || defaultHeight);
+
+                if (scrollTop >= bottom) {
+                    left = middle + 1;
+                } else if (scrollTop < top) {
+                    right = middle - 1;
+                } else {
+                    return middle;
+                }
+            }
+
+            return Math.max(0, left - 1);
+        }
+
+        function render() {
+            const scrollTop = container.scrollTop;
+            const startIndex = Math.max(0, binarySearch(scrollTop) - bufferCount);
+
+            for (let i = 0; i < pool.length; i++) {
+                const dataIndex = startIndex + i;
+                const node = pool[i];
+
+                if (dataIndex >= data.length) {
+                    node.style.display = 'none';
+                    delete node.dataset.index;
+                    continue;
+                }
+
+                node.style.display = 'block';
+                node.style.transform = `translateY(${prefixHeights[dataIndex]}px)`;
+
+                if (node.dataset.index !== String(dataIndex)) {
+                    renderItem(node, data[dataIndex], dataIndex);
+                }
+            }
+
+            requestAnimationFrame(() => {
+                pool.forEach((node) => {
+                    if (node.style.display === 'none') return;
+                    const index = Number(node.dataset.index);
+                    if (Number.isNaN(index)) return;
+                    measureItem(node, index);
+                });
+            });
+        }
+
+        let scheduled = false;
+        function scheduleRender() {
+            if (rerenderPending) return;
+            rerenderPending = true;
+
+            requestAnimationFrame(() => {
+                render();
+                rerenderPending = false;
+            });
+        }
+
+        function onScroll() {
+            if (scheduled) return;
+            scheduled = true;
+
+            requestAnimationFrame(() => {
+                render();
+                scheduled = false;
+            });
+        }
+
+        container.addEventListener('scroll', onScroll, { passive: true });
+        updatePrefixHeights();
+        render();
+    </script>
+</body>
+
+</html>
