@@ -1,5 +1,9 @@
 # JavaScript
 
+## JS
+
+JS是单线程语言。是为了避免在执行JS代码时，页面的其他操作（如用户交互、动画等）被阻塞而设计的。单线程意味着在同一时间只能执行一个任务，这样可以避免多个任务同时访问共享资源时发生冲突（如操作DOM），从而提高了代码的安全性和稳定性。
+
 ## JS的数据类型有哪些，区别是什么
 
 八大数据类型:Undefined,Null,Boolean,Number,String,Object,Symbol,BigInt
