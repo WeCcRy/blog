@@ -1,5 +1,33 @@
 # React18
 
+## 函数式编程和组件式编程的区别
+
+在 React 语境下，这通常探讨的是 **函数组件（Functional Components）** 与 **类组件（Class Components）** 的区别。这两种不同的组件写法分别代表了不同的编程范式。
+
+### 1. 核心概念对比
+
+*   **类组件（Class Components）**：属于**面向对象编程（OOP）**。它关注的是组件实例和生命周期。组件有自己的内部状态（`this.state`），并通过 `this` 来访问数据。需要通过生命周期钩子（如 `componentDidMount`、`componentDidUpdate`）来管理不同的阶段逻辑。
+*   **函数组件（Functional Components）**：属于**函数式编程（FP）**。核心思想是**确定的输入决定确定的输出**（`UI = f(state)`）。它更加关注数据的转化和渲染本身，不关心实例化，利用闭包（Closure）来捕获每一次渲染的独立状态。（即每一次的渲染都是基于当时的状态，类组件中渲染依赖state，但state是可变的）
+
+
+### 2. 状态与副作用管理
+
+*   **类组件**：往往通过生命周期将所有逻辑混杂在一起。比如在 `componentDidMount` 里同时发起不同的网络请求、绑定各类事件监听，然后再在 `componentWillUnmount` 里解绑事件。
+*   **函数组件**：凭借 React Hooks（如 `useState`、`useEffect`），可以按具体的业务功能将相关的副作用代码聚合在一起（例如订阅与清理写在同一个 `useEffect` 内），而不是根据生命周期硬性拆分。
+
+| class 组件               | Hooks 组件               |
+| ------------------------ | ------------------------ |
+| constructor              | useState                 |
+| getDerivedStateFromProps | useState 里面 setxx 函数 |
+| shouldComponentUpdate    | useMemo                  |
+| render                   | 函数本身（执行函数）     |
+| componentDidMount        | useEffect                |
+| componentDidUpdate       | useEffect                |
+| componentWillUnmount     | useEffect 里面返回的函数 |
+| componentDidCatch        | 无                       |
+| getDerivedStateFromError | 无                       |
+
+
 # JSX
 
 ## 响应表达式
