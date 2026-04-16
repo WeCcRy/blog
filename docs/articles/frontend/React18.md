@@ -219,6 +219,8 @@ function batchedUpdates(fn) {
 | `setTimeout` / `setInterval` | `false`             | **同步，立即更新** | 多次          |
 | 原生 DOM 事件                | `false`             | **同步，立即更新** | 多次          |
 
+
+
 ### 三、React 18：自动批处理 (Automatic Batching)
 
 #### 1. 实现原理
@@ -275,6 +277,26 @@ function setState(newState) {
 
 *   **React 17**：通过手动开关标志位，利用同步代码块的包裹来实现批处理，`setTimeout` 等场景因脱离包裹环境而失效。
 *   **React 18**：利用事件循环机制（微任务），确保无论在何处调用，都会在当前同步代码执行完后才进行合并更新。
+
+### 六、如何脱离自动批处理
+
+*   **React 17 及以前**：可以使用 `setTimeout` 等异步操作包裹 `setState`。
+*   **React 18**：提供了 `flushSync` API 用于强制同步刷新 DOM，从而避免批处理。
+
+```react
+import { flushSync } from 'react-dom';
+
+function handleClick() {
+  flushSync(() => {
+    setCount(c => c + 1);
+  });
+  // 此时 DOM 已经同步更新
+  flushSync(() => {
+    setFlag(f => !f);
+  });
+  // 此时 DOM 再次同步更新
+}
+```
 
 ## 样式引入
 
