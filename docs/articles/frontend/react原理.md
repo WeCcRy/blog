@@ -190,3 +190,348 @@ const isTaskIncludedInBatchByLanes2 = (task & batchOfTasks) !== 0;
 说明：React 通过组合这些位（位掩码）来表示一组 pending lanes，例如 `pendingLanes |= TransitionLane1`，并用 `(pendingLanes & lane) !== 0` 来判断某个 lane 是否存在。JavaScript 的位运算在底层当作有符号 32 位整数，最高位是符号位（索引 31）。为了避免符号位带来的负数/不确定行为，实践中只用低 31 位（索引 0 到 30）
 
 ## 调度原理
+
+```markdown
+外部发起调度
+    ↓
+unstable_scheduleCallback
+    ├─ 生成任务：id、callback、priorityLevel、startTime
+    ├─ 根据优先级计算 timeout → expirationTime
+    ├─ sortIndex = expirationTime
+    └─ 推入最小堆 taskQueue，并 requestHostCallback(flushWork)
+                ↓
+requestHostCallback
+    ├─ 保存 scheduledHostCallback = flushWork
+    └─ port.postMessage(null) 触发异步宏任务
+                ↓
+performWorkUntilDeadline
+    ├─ 设置 deadline = now + yieldInterval（5ms）
+    ├─ 执行 flushWork
+    └─ 根据返回值判断是否继续下一轮调度
+                ↓
+flushWork
+    ├─ 标记正在工作
+    └─ 调用 workLoop 消费任务队列
+                ↓
+workLoop【时间切片核心】
+    ├─ 取堆顶任务（sortIndex 最小，优先级最高）
+    ├─ 判断：是否过期 / 是否需要让出主线程（shouldYieldToHost）
+    ├─ 执行任务 callback
+    ├─ 任务完成则 pop 出堆，未完成则保留
+    └─ 返回是否还有剩余任务
+                ↓
+shouldYieldToHost【是否暂停】
+    ├─ 超过 5ms 且有用户输入/渲染 → 让出
+    ├─ 超过 300ms → 必须让出
+    └─ 否则继续执行
+```
+
+### unstable_scheduleCallback
+
+调度的入口，实现将任务注册到 Scheduler 中。它会根据传入的优先级计算任务的过期时间，并把任务推入一个最小堆（`taskQueue`）中，确保优先级最高的任务总是在堆顶。
+
+主要功能
+1. 创建任务
+2. 加入任务队列 taskQueue
+3. 调用 requestHostCallback 开始调度
+4. 支持优先级
+
+```javascript
+// 省略部分无关代码
+function unstable_scheduleCallback(priorityLevel, callback, options) {
+  // 1. 获取当前时间
+  var currentTime = getCurrentTime();
+  var startTime;
+  if (typeof options === 'object' && options !== null) {
+    // 从函数调用关系来看, 在v17.0.2中,所有调用 unstable_scheduleCallback 都未传入options
+    // 所以省略延时任务相关的代码
+  } else {
+    startTime = currentTime;
+  }
+  // 2. 根据传入的优先级, 设置任务的过期时间
+  var timeout;
+  switch (priorityLevel) {
+    case ImmediatePriority:
+      timeout = IMMEDIATE_PRIORITY_TIMEOUT;
+      break;
+    case UserBlockingPriority:
+      timeout = USER_BLOCKING_PRIORITY_TIMEOUT;
+      break;
+    case IdlePriority:
+      timeout = IDLE_PRIORITY_TIMEOUT;
+      break;
+    case LowPriority:
+      timeout = LOW_PRIORITY_TIMEOUT;
+      break;
+    case NormalPriority:
+    default:
+      timeout = NORMAL_PRIORITY_TIMEOUT;
+      break;
+  }
+  // 通过初始时间和 timeout 计算出过期时间
+  var expirationTime = startTime + timeout;
+  // 3. 创建新任务
+  var newTask = {
+    id: taskIdCounter++,
+    callback,
+    priorityLevel,
+    startTime,
+    expirationTime,
+    sortIndex: -1,
+  };
+  if (startTime > currentTime) {
+    // 省略无关代码 v17.0.2中不会使用
+  } else {
+    newTask.sortIndex = expirationTime; // 根据过期时间排序，过期时间越早优先级越高，如果过期时间一致，则根据任务 id 排序，id 越小优先级越高
+    // 4. 加入任务队列
+    push(taskQueue, newTask);
+    // 5. 请求调度
+    if (!isHostCallbackScheduled && !isPerformingWork) {
+      isHostCallbackScheduled = true;
+      requestHostCallback(flushWork); // 这里把 flushWork 注册到宿主环境，等待执行
+    }
+  }
+  return newTask;
+}
+```
+
+### requestHostCallback
+
+实现异步调度。 React Scheduler 通过 `requestHostCallback` 把回调注册到宿主环境（例如浏览器），常见的实现是利用 `MessageChannel` 来创建一个异步执行器，确保回调在“下一个宏任务”中执行，从而不阻塞当前的渲染或用户交互。
+
+```javascript
+const channel = new MessageChannel();
+const port = channel.port2;
+channel.port1.onmessage = performWorkUntilDeadline;
+
+// 请求回调
+requestHostCallback = function(callback) {
+  // 1. 保存callback
+  scheduledHostCallback = callback;
+  if (!isMessageLoopRunning) {
+    isMessageLoopRunning = true;
+    // 2. 通过 MessageChannel 发送消息
+    port.postMessage(null);
+  }
+};
+// 取消回调
+cancelHostCallback = function() {
+  scheduledHostCallback = null;
+};
+```
+
+### performWorkUntilDeadline 
+
+实际的任务执行代码，是 Scheduler 的核心执行入口。它会在宿主环境（例如浏览器）触发时被调用，负责执行调度的回调函数（通常是 `flushWork`），并根据执行结果决定是否继续下一轮调度。
+
+```javascript
+const performWorkUntilDeadline = () => {
+  if (scheduledHostCallback !== null) {
+    const currentTime = getCurrentTime(); // 1. 获取当前时间
+    deadline = currentTime + yieldInterval; // 2. 设置deadline
+    const hasTimeRemaining = true;
+    try {
+      // 3. 执行回调, 返回是否有还有剩余任务
+      const hasMoreWork = scheduledHostCallback(hasTimeRemaining, currentTime);
+      if (!hasMoreWork) {
+        // 没有剩余任务, 退出
+        isMessageLoopRunning = false;
+        scheduledHostCallback = null;
+      } else {
+        port.postMessage(null); // 有剩余任务, 发起新的调度
+      }
+    } catch (error) {
+      port.postMessage(null); // 如有异常, 重新发起调度
+      throw error;
+    }
+  } else {
+    isMessageLoopRunning = false;
+  }
+  needsPaint = false; // 重置开关
+};
+```
+
+### flushWork
+
+`flushWork` 负责维护调度状态，并调用 `workLoop` 来执行任务队列中的任务。它会设置全局标记来表示正在执行调度，并在完成后还原这些标记，以确保调度状态的正确性。
+
+```javascript
+// 省略无关代码
+function flushWork(hasTimeRemaining, initialTime) {
+  // 1. 做好全局标记, 表示现在已经进入调度阶段
+  isHostCallbackScheduled = false;
+  isPerformingWork = true;
+  const previousPriorityLevel = currentPriorityLevel;
+  try {
+    // 2. 循环消费队列
+    return workLoop(hasTimeRemaining, initialTime);
+  } finally {
+    // 3. 还原全局标记
+    currentTask = null;
+    currentPriorityLevel = previousPriorityLevel;
+    isPerformingWork = false;
+  }
+}
+```
+### workLoop
+
+`workLoop` 是 Scheduler 中的核心函数，负责从 `taskQueue` 中取出任务并执行。它会根据任务的过期时间和当前时间来判断是否需要让出主线程，以实现时间切片。
+
+```javascript
+// 省略部分无关代码
+function workLoop(hasTimeRemaining, initialTime) {
+  let currentTime = initialTime; // 保存当前时间, 用于判断任务是否过期
+  currentTask = peek(taskQueue); // 获取队列中的第一个任务
+  while (currentTask !== null) {
+    if (
+      currentTask.expirationTime > currentTime &&
+      (!hasTimeRemaining || shouldYieldToHost())
+    ) {
+      // 虽然currentTask没有过期, 但是执行时间超过了限制(毕竟只有5ms, shouldYieldToHost()返回true). 停止继续执行, 让出主线程
+      break;
+    }
+    const callback = currentTask.callback;
+    if (typeof callback === 'function') {
+      currentTask.callback = null;
+      currentPriorityLevel = currentTask.priorityLevel;
+      const didUserCallbackTimeout = currentTask.expirationTime <= currentTime;
+      // 执行回调
+      const continuationCallback = callback(didUserCallbackTimeout);
+      currentTime = getCurrentTime();
+      // 回调完成, 判断是否还有连续(派生)回调
+      if (typeof continuationCallback === 'function') {
+        // 产生了连续回调(如fiber树太大, 出现了中断渲染), 保留currentTask
+        currentTask.callback = continuationCallback;
+      } else {
+        // 把currentTask移出队列
+        if (currentTask === peek(taskQueue)) {
+          pop(taskQueue);
+        }
+      }
+    } else {
+      // 如果任务被取消(这时currentTask.callback = null), 将其移出队列
+      pop(taskQueue);
+    }
+    // 更新currentTask
+    currentTask = peek(taskQueue);
+  }
+  if (currentTask !== null) {
+    return true; // 如果task队列没有清空, 返回true. 等待调度中心下一次回调
+  } else {
+    return false; // task队列已经清空, 返回false.
+  }
+}
+```
+
+### shouldYieldToHost
+
+时间切片功能, 用于判断当前任务是否已经执行超过了时间切片的周期（默认5ms），如果是则让出主线程，以便浏览器可以处理用户输入或渲染等高优先级任务。
+
+```javascript
+const localPerformance = performance;
+// 获取当前时间
+getCurrentTime = () => localPerformance.now();
+
+// 时间切片周期, 默认是5ms(如果一个task运行超过该周期, 下一个task执行之前, 会把控制权归还浏览器)
+let yieldInterval = 5;
+
+let deadline = 0; // deadline会在其他函数中被设置为当前时间 + yieldInterval, 用于判断是否需要让出主线程
+const maxYieldInterval = 300;
+let needsPaint = false;
+const scheduling = navigator.scheduling;
+// 是否让出主线程
+shouldYieldToHost = function() {
+  const currentTime = getCurrentTime();
+  if (currentTime >= deadline) {
+	// 需要
+    if (needsPaint || scheduling.isInputPending()) {
+      return true;
+    }
+    return currentTime >= maxYieldInterval; // 这里的 maxYieldInterval 通过一个大的时间阈值，在应用启动初期给予 React 更高的执行权重，而在 300ms 后切换到以 5ms 为周期的严格时间切片模式。
+  } else {
+    // 依然有时间片可以执行, 不需要让出主线程
+    return false;
+  }
+};
+
+// 请求绘制
+requestPaint = function() {
+  needsPaint = true;
+};
+
+// 设置时间切片的周期
+forceFrameRate = function(fps) {
+  if (fps < 0 || fps > 125) {
+    // Using console['error'] to evade Babel and ESLint
+    console['error'](
+      'forceFrameRate takes a positive int between 0 and 125, ' +
+        'forcing frame rates higher than 125 fps is not supported',
+    );
+    return;
+  }
+  if (fps > 0) {
+    yieldInterval = Math.floor(1000 / fps);
+  } else {
+    // reset the framerate
+    yieldInterval = 5;
+  }
+};
+```
+
+> navigator.scheduling.isInputPending() 是一个实验性 API，用于检测是否有用户输入事件（如点击、键盘输入等）正在等待处理。React Scheduler 使用它来判断是否需要让出主线程，以便浏览器可以优先处理用户输入，从而提高界面响应性。如果用户有输入等待处理，这个函数会返回true
+
+### 与react-conciler的关系
+
+`react-conciler`在第二步中使用`ensureRootIsScheduled`, 通过这个函数来调用`unstable_scheduleCallback`把调和任务注册到 Scheduler 中。
+
+```javascript
+function ensureRootIsScheduled(root, currentTime) {
+  // 1. 获取当前 root 上所有等待处理的 Lanes 中优先级最高的那一个
+  const nextLanes = getNextLanes(root, NoLanes);
+  
+  // 2. 如果没有任务了，取消之前的调度并退出（有可能是更新合并或者组件卸载）
+  if (nextLanes === NoLanes) {
+    if (root.callbackNode !== null) {
+      cancelCallback(root.callbackNode);
+    }
+    root.callbackPriority = NoLane;
+    root.callbackNode = null;
+    return;
+  }
+
+  // 3. 检查当前是否已经有一个正在进行的调度任务
+  const existingCallbackPriority = root.callbackPriority; // 当前正在调度的任务优先级
+  const newCallbackPriority = getHighestPriorityLane(nextLanes); // 新任务的优先级（即等待处理的 lanes 中优先级最高的 lane）
+
+  // 【核心点】如果新任务的优先级和正在运行的任务优先级一致，直接复用，不需要重复调度(防抖)
+  if (newCallbackPriority === existingCallbackPriority) {
+    return;
+  }
+
+  // 4. 如果优先级变了（有了更高优先级的任务），取消旧的并开启新的
+  if (root.callbackNode !== null) {
+    cancelCallback(root.callbackNode);
+  }
+
+  let newCallbackNode;
+  // 5. 根据优先级决定调用 Scheduler 的哪个接口
+  if (newCallbackPriority === SyncLane) {
+    // 同步任务（Legacy 模式或高优同步）
+    scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root));
+    newCallbackNode = null; 
+  } else {
+    // 异步/并发任务
+    const schedulerPriorityLevel = lanePriorityToSchedulerPriority(newCallbackPriority);
+    // 关键：这里调用了你文档中写的 unstable_scheduleCallback
+    newCallbackNode = scheduleCallback(
+      schedulerPriorityLevel,
+      performConcurrentWorkOnRoot.bind(null, root)
+    );
+  }
+
+  root.callbackPriority = newCallbackPriority;
+  root.callbackNode = newCallbackNode;
+}
+```
+
+## fiber
