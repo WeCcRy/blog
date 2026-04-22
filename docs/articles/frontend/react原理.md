@@ -535,3 +535,472 @@ function ensureRootIsScheduled(root, currentTime) {
 ```
 
 ## fiber
+
+### ReactElement、Fiber、Dom之间的关系
+
+- ReactElement：所有采用jsx语法书写的节点, 都会被编译器转换, 最终会以`React.createElement(...)`的方式, 创建出来一个与之对应的`ReactElement`对象
+- Fiber：`fiber对象`是通过`ReactElement`对象进行创建的, 每一个`fiber对象`描述了组件的一个实例（包括我是谁、我的父节点、我的子节点、我的兄弟节点等）, 多个`fiber对象`构成了一棵fiber树, `fiber树`是构造`DOM树`的数据模型, `fiber树`的任何改动, 最后都体现到`DOM树`.
+- Dom：`DOM`将文档解析为一个由节点和对象（包含属性和方法的对象）组成的结构集合, 也就是常说的`DOM树`.`JavaScript`可以访问和操作存储在 DOM 中的内容, 也就是操作`DOM对象`, 进而触发 UI 渲染.
+
+> React内部同时维护两棵fiber树，一颗是当前页面上真正显示的树（current tree），另一颗是正在构建的树（workInProgress tree）。当调和完成后，React 会把 workInProgress tree 切换为 current tree，并把 current tree 作为备用树（alternate）。两棵树通过 alternate 属性相互引用，这样在更新过程中可以复用节点，减少内存分配和垃圾回收的开销。
+
+ReactElemet->Fiber->DOM的过程
+
+![](./images/domtransform.png)
+
+### 启动阶段
+
+[之前介绍到](#启动过程)，在进入`react-reconciler`之前，ReactDOM会先创建一个`fiberRoot`对象（图中第二个对象），并在这个`fiberRoot`上创建一个`hostRootFiber`（图中第三个对象）。如下图所示:
+
+![](./images/dombeforeinit.png)
+
+随后会调用`updateContainer`, 这个函数的作用是把你要渲染的内容（例如`<App/>`）放入到`hostRootFiber`的更新队列中，并且进入调和器的输入阶段，开始构建 Fiber 树。
+
+```javascript
+export function updateContainer(
+  element: ReactNodeList, // 你要渲染的内容：<App/>
+  container: OpaqueRoot, // 根容器 FiberRoot
+  parentComponent: ?React$Component<any, any>,
+  callback: ?Function,
+): Lane {
+  // 获取当前时间戳
+  const current = container.current;
+  const eventTime = requestEventTime();
+  // 1. 创建一个优先级变量(会根据传入fiber的类型和当前更新的优先级来计算出一个新的优先级)
+  const lane = requestUpdateLane(current);
+
+  // 2. 根据车道优先级, 创建update对象, 并加入fiber.updateQueue.pending队列
+  const update = createUpdate(eventTime, lane);
+  update.payload = { element };
+  // 很少使用，一般在使用 ReactDOM.render ，作为第三个参数传入，会在更新完成后被调用。
+  callback = callback === undefined ? null : callback;
+  if (callback !== null) {
+    update.callback = callback;
+  }
+  enqueueUpdate(current, update); // 将更新对象加入到当前 fiber 的 updateQueue.pending 中，等待调和器处理
+
+  // 3. 进入reconciler运作流程中的`输入`环节
+  scheduleUpdateOnFiber(current, lane, eventTime);
+  return lane;
+}
+```
+
+于是在执行完上述函数后，会构建一个update对象，对象的内容是`<App/>`，并申请调度，进入调和器的输入阶段，开始构建 Fiber 树。如下图所示：
+
+![](./images/domafterinit.png)
+
+### 构造阶段
+
+此时`FiberRoot`和`HostRootFiber`的关系如下图所示，随后上述代码在最后执行了`scheduleUpdateOnFiber`，
+
+![](./images/FiberRootAndHostRootFiberStart.png)
+
+```javascript
+export function scheduleUpdateOnFiber(fiber, lane, eventTime) {
+  // 1. 从当前 fiber 一直往上找，找到根 FiberRoot
+  const root = markUpdateLaneFromFiberToRoot(fiber, lane); // 这个函数会把更新的 lane 标记到 fiber 和它的祖先上，直到找到根 FiberRoot，并返回该 root。由于是首次渲染，所以直接返回 FiberRoot。
+
+  // 2. 如果是同步更新（首次渲染就是）
+  if (lane === SyncLane) {
+    // 3. 判断是否满足首次渲染的要求
+    if (...) {
+      // 4. 直接开始构建 Fiber 树！
+      performSyncWorkOnRoot(root);
+    }
+  }
+}
+```
+
+```javascript
+function performSyncWorkOnRoot(root) {
+  // 1. 获取要渲染的优先级
+  lanes = getNextLanes(root, NoLanes);
+
+  // 2. 开始同步构建 Fiber 树
+  exitStatus = renderRootSync(root, lanes);
+
+  // 3. 构建好的新 Fiber 树放到 root.finishedWork
+  const finishedWork = root.current.alternate; // 初次渲染的时候，root.current 指向 hostRootFiber，hostRootFiber.alternate 是正在构建的 workInProgress Fiber 树的根节点（也是 HostRootFiber）。
+  root.finishedWork = finishedWork;
+
+  // 4. 进入 DOM 渲染阶段
+  commitRoot(root);
+}
+```
+
+```javascript
+function renderRootSync(root, lanes) {
+  // 进入渲染模式（位掩码 执行 或操作）
+  executionContext |= RenderContext;
+
+  // 如果根变了 或 优先级变了 → 刷新栈帧（直接丢弃之前的渲染结果）
+  if (workInProgressRoot !== root || workInProgressRootRenderLanes !== lanes) {
+    // 刷新栈帧
+    prepareFreshStack(root, lanes);
+  }
+
+  // 开始循环构建 Fiber 树
+  do {
+    workLoopSync();
+    break;
+  } while (true);
+
+  // 渲染结束，清空全局变量。这个变量的作用是一个全局的锁，用来标记当前正在构建哪个根的 Fiber 树，避免在构建过程中被其他更新打断。
+  workInProgressRoot = null;
+  workInProgressRootRenderLanes = NoLanes;
+  return;
+}
+```
+
+```javascript
+function prepareFreshStack(root, lanes) {
+  // 1. 设置当前正在处理的根节点
+  workInProgressRoot = root;
+  workInProgressRootRenderLanes = lanes;
+
+  // 2. 创建或复用“正在构建树”的根节点 (HostRootFiber)
+  // 这是双缓存机制的起点：root.current -> 当前树，root.current.alternate -> 构建树
+  workInProgress = createWorkInProgress(root.current, null);
+
+  // 3. 重置其他辅助性的全局变量，确保渲染从零开始
+  // 比如重置当前的副作用链、dispatcher 等
+  // ...
+}
+```
+
+该步骤后，React 已经成功构建了一个新的 Fiber 树（workInProgress），并把它放在了 root.finishedWork 上，准备进入循环构造阶段
+
+> workInProgressRoot 和 workInProgress的区别在于，workInProgressRoot 是一个全局变量，用于标记当前正在构建哪个根的 Fiber 树；而 workInProgress 则是一个指针，指向当前正在处理的 Fiber 节点。在构建过程中，workInProgress 会不断地移动，遍历整个 Fiber 树，而 workInProgressRoot 则保持不变，直到整个树构建完成。
+
+![](./images/FiberRootAndHostRootFiberend.png)
+
+```javascript
+function workLoopSync() {
+  while (workInProgress !== null) {
+    performUnitOfWork(workInProgress);
+  }
+}
+// 此处可以对比下concurrent版本的workLoop, 你会发现concurrent版本的workLoop多了一个时间切片的判断, 以便在构建过程中可以被打断, 从而保持界面响应性.
+function workLoopConcurrent() {
+  while (workInProgress !== null && !shouldYield()) {
+    performUnitOfWork(workInProgress);
+  }
+}
+```
+
+```javascript
+function performUnitOfWork(unitOfWork: Fiber): void {
+  // 1. 拿到旧节点（current = 页面上正在显示的 Fiber）
+  const current = unitOfWork.alternate;
+
+  let next;
+
+  // 2. 【往下走】开始处理当前节点（创建子fiber），返回第一个子节点
+  next = beginWork(current, unitOfWork, subtreeRenderLanes);
+
+  // 3. 把“待处理属性”变成“已处理属性”（更新完毕标记）
+  unitOfWork.memoizedProps = unitOfWork.pendingProps;
+
+  // 4. 如果没有子节点 → 走到头了 → 开始往回走
+  if (next === null) {
+    // 【往回走】完成当前节点，生成真实DOM并把子节点挂载到自身上、收集副作用
+    completeUnitOfWork(unitOfWork);
+  } else {
+    // 还有子节点 → 继续往下处理
+    workInProgress = next;
+  }
+}
+```
+
+> 由以上内容可以看出，React 的构建过程是一个深度优先的递归过程，先往下走到叶子节点，再往回走完成每个节点的工作。每个`fiber`节点都会经历两个阶段：
+> - beginWork：处理当前节点，创建子 fiber，返回第一个子节点
+> - completeWork：完成当前节点，生成真实 DOM，挂载子节点
+> 由此构建出最后的`Fiber`树
+
+```javascript
+function beginWork(current, workInProgress, renderLanes) {
+  // 1. 性能优化位：Bailout 策略
+  // 如果 props 和 context 没变，且当前节点优先级不够，则进入复用(bailoutOnAlreadyFinishedWork)逻辑
+  if (current !== null) {
+    const oldProps = current.memoizedProps;
+    const newProps = workInProgress.pendingProps;
+    if (oldProps === newProps && !hasContextChanged()) {
+      // 检查是否有挂级的更新请求，如果没有，直接跳过子树
+      if (!checkScheduledUpdateOrContext(current, renderLanes)) {
+        return bailoutOnAlreadyFinishedWork(current, workInProgress, renderLanes);
+      }
+    }
+  }
+
+  // 2. 根据 tag 类型进入不同的处理逻辑
+  // 核心目标：计算子节点的 pendingProps，并调用 reconcileChildren
+  switch (workInProgress.tag) {
+    case HostRoot:           // 根节点：处理 updateQueue
+      return updateHostRoot(current, workInProgress, renderLanes);
+    case FunctionComponent:  // 函数组件：执行函数，拿到返回的 jsx
+      return updateFunctionComponent(current, workInProgress, Component, nextProps, renderLanes);
+    case ClassComponent:     // 类组件：实例化/更新实例，调用 render 方法
+      return updateClassComponent(current, workInProgress, Component, nextProps, renderLanes);
+    case HostComponent:      // 原生 DOM 节点（如 <div>）：获取 children 属性
+      return updateHostComponent(current, workInProgress, renderLanes);
+    // ... 其他类型如 Fragment, Suspense 等
+  }
+}
+
+// reconcileChildren 的伪代码逻辑：
+// 它是 beginWork 的终点，负责创建/更新/打标子 Fiber
+function reconcileChildren(current, workInProgress, nextChildren, renderLanes) {
+  if (current === null) {
+    // 首次渲染(Mount)：不追踪副作用（Placement），提高首次渲染效率
+    workInProgress.child = mountChildFibers(workInProgress, null, nextChildren, renderLanes);
+  } else {
+    // 更新渲染(Update)：对比 current.child 和 nextChildren，标记插入/删除/移动
+    workInProgress.child = reconcileChildFibers(workInProgress, current.child, nextChildren, renderLanes);
+  }
+}
+```
+#### React 是如何标记插入/删除/移动的？
+
+> **什么是“对比并标记”？**
+> 这是 React **Diff 算法** 的核心。在更新场景下，React 不会暴力销毁旧 DOM。
+> - **插入 (Placement)**：新树有，旧树没。标记为新增。
+> - **删除 (Deletion)**：旧树有，新树没。将旧 Fiber 放入 `deletions` 列表，待删。
+> - **更新 (Update)**：节点没变，但属性（props）变了。打着 `Update` 标记，后续只更新 DOM 属性。
+> - **移动 (Movement)**：节点还在，但位置变了。配合 **`key`** 属性（**节点的唯一身份标识**，而非简单的数组索引），React 使用 `lastPlacedIndex` 算法来计算。使用了确定的 `key` 后，React 能够跨越渲染顺序，精准匹配新旧 Fiber 节点。
+
+**案例：** 将 `A, B, C, D` 更新为 `D, A, B, C`（把最后一个移到最前）。
+
+- **处理 D**：旧索引是 3，`lastPlacedIndex` 初始为 0。因为 `3 >= 0`，D **不动**，`lastPlacedIndex` 更新为 3。
+- **处理 A**：旧索引是 0，因为 `0 < 3`（旧索引小于当前已处理的最大索引），判定为**移动**。
+- **处理 B**：旧索引 is 1，因为 `1 < 3`，判定为**移动**。
+- **处理 C**：旧索引 is 2，因为 `2 < 3`，判定为**移动**。
+- **结论**：React 动了 3 次 DOM，把 A, B, C 全都移到了 D 的后面。
+
+**多节点移动案例：** 将 `A, B, C, D` 更新为 `C, B, D, A`。
+
+1. **Render 阶段（打标）**：
+   - **处理 C**：`oldIndex=2`。`2 > 0`，C 不动，`lastPlacedIndex = 2`。
+   - **处理 B**：`oldIndex=1`。`1 < 2`，B 标记 `Placement`。
+   - **处理 D**：`oldIndex=3`。`3 > 2`，D 不动，`lastPlacedIndex = 3`。
+   - **处理 A**：`oldIndex=0`。`0 < 3`，A 标记 `Placement`。
+
+2. **Commit 阶段（实际 DOM 操作顺序）**：
+   - **当前 DOM 状态**：`[A, B, C, D]`
+   - **遇到 C**：不动。
+   - **遇到 B**：有 `Placement`。寻找新序列下 B 后面第一个“不需要移动”且“有物理 DOM”的节点。
+     - **寻找逻辑（`getHostSibling`）**：
+       1. 从 B 的 **`sibling`（兄弟 Fiber）** 开始往后遍历新链表。
+       2. 如果遇到标记为 `Placement` 的节点（如 A），跳过（因为它也要动，不能当参照物）。
+       3. 如果遇到**没有** `Placement` 标记的节点（如 D），且它是原生 DOM，则返回它的 `stateNode`。
+       4. 如果是组件节点且不移动，则**递归进入其子树**寻找最左侧的原生 DOM。
+     - **执行指令**：`insertBefore(B, D)`。
+     - **此时 DOM 状态**：`[A, C, B, D]`（B 移动到了 D 前面）。
+   - **遇到 D**：不动。
+   - **遇到 A**：有 `Placement`。寻找新序列下 A 后面第一个不动的节点。A 后面没节点了。
+     - **执行指令**：`insertBefore(A, null)`。
+     - **此时 DOM 状态**：`[C, B, D, A]`（最终完成）。
+
+> Vue 3 的最长递增子序列算法 (LIS)
+> **Vue 的策略：**
+> 1. **双端预处理**：先对比头尾，排除没变的节点。
+> 2. **构造映射表**：建立新节点在旧集合中的索引映射。
+> 3. **计算 LIS**：在映射表中寻找**最长递增子序列**（例如上面的案例中，`A, B, C` 就是递增的）。
+> 4. **最小化移动**：属于子序列的节点**原地不动**，只移动不在子序列中的节点（如 `D`）。
+> **结论**：Vue 只动了 1 次 DOM，把 D 移到了最前面。
+
+React 这种“仅右移”算法虽然在极端情况下 DOM 操作多，但算法复杂度稳定在 `O(n)`，且更匹配其 Fiber 链表调和的架构；Vue 则通过更复杂的算法逻辑`O(nlogn)`换取了最优的渲染性能（更少的 DOM 操作）。
+
+```javascript
+function completeWork(current, workInProgress, renderLanes) {
+  const newProps = workInProgress.pendingProps;
+
+  switch (workInProgress.tag) {
+    case HostComponent: { // 处理原生 DOM 节点（如 <div>）
+      if (current !== null && workInProgress.stateNode !== null) {
+        // 【更新模式】：对比新旧 Props，记录变更（updatePayload）
+        updateHostComponent(current, workInProgress, workInProgress.tag, newProps);
+      } else {
+        // 【挂载模式】：真正的“从无到有”
+        // 1. 创建 DOM 实例
+        const instance = createInstance(workInProgress.type, newProps, ...);
+        // 2. 节点组装：将子孙 DOM 挂载到自己下面（形成离屏 DOM 树）
+        appendAllChildren(instance, workInProgress, ...);
+        // 3. 处理属性：初始化 onClick、className、style 等
+        finalizeInitialChildren(instance, workInProgress.type, newProps, ...);
+        // 4. 指证：将 DOM 挂到 Fiber 的 stateNode 上
+        workInProgress.stateNode = instance;
+      }
+      return null;
+    }
+    case FunctionComponent:
+    case ClassComponent:
+      return null; // 这里通常只处理上下文弹出或 Ref
+  }
+}
+```
+
+**核心机制：副作用冒泡**
+`completeWork` 有一个非常重要的隐藏工作：它在往回走的过程中，会把子树上所有的**副作用（flags/deletions）** 向上冒泡，层层收集到父节点。这一步是由 `completeUnitOfWork` 函数实现的：
+```javascript
+function completeUnitOfWork(unitOfWork) {
+  let completedWork = unitOfWork;
+  do {
+    const current = completedWork.alternate;
+    const returnFiber = completedWork.return;
+    // 1. 执行真正的 completeWork（创建 DOM、处理差异）
+    completeWork(current, completedWork, ...);
+    // 2. 副作用收集（冒泡的核心代码）
+    if (returnFiber !== null) {
+      // 将子节点的删除列表合并到父节点
+      if (returnFiber.deletions === null && completedWork.deletions !== null) {
+        returnFiber.deletions = completedWork.deletions;
+      }
+      // 将子节点的 flags 冒泡到父节点 subtreeFlags
+      returnFiber.subtreeFlags |= completedWork.subtreeFlags;
+      returnFiber.subtreeFlags |= completedWork.flags;
+    }
+    // 3. 寻找兄弟节点（继续 beginWork）或返回父节点（继续 completeUnitOfWork）
+    const siblingFiber = completedWork.sibling;
+    if (siblingFiber !== null) {
+      workInProgress = siblingFiber;
+      return;
+    }
+    completedWork = returnFiber;
+  } while (completedWork !== null);
+}
+```
+> 这样当回到 `HostRoot` 时，根节点就通过 `subtreeFlags` 掌握了整棵树需要做的所有 DOM 改动清单。
+>
+> **对比：flags vs subtreeFlags**
+> - **flags** (旧称 effectTag): 记录**当前节点本身**发生的副作用（如自己需要更新、自己需要插入）。
+> - **subtreeFlags**: 记录**该节点的子树中**产生的所有副作用。
+>
+> **为什么要这么做？**
+> 这是为了性能优化。在 Commit 阶段，React 会根据 `subtreeFlags` 快速跳过那些没有副作用的整棵子树。例如：如果一个父节点的 `subtreeFlags` 为 `NoFlags`（即 0），那么 React 连看都不用看它的子节点，直接跳过，极大地提高了提交阶段的遍历效率。
+
+fiber树构造的详细图解流程参考https://7km.top/main/fibertree-create#%E8%BF%87%E7%A8%8B%E5%9B%BE%E8%A7%A3
+
+### 更新阶段
+
+更新阶段（Update）与首次渲染（Mount）在顶层架构上是一致的，都会经历 `scheduleUpdateOnFiber` -> `renderRootSync/Concurrent` -> `commitRoot`。
+
+但其内部逻辑有两个核心差异点：**Bailout（复用/跳过）** 和 **Side Effect（副作用）收集**。
+
+#### 1. 触发更新
+当组件调用 `setState` 或 `dispatchAction` 时：
+- 创建一个 `update` 对象，记录最新的状态或 action。
+- 将 `update` 放入当前 Fiber 的 `updateQueue`。
+- 调用 `scheduleUpdateOnFiber(fiber, lane, ...)`，这会沿着当前 Fiber 一路向上找到 `FiberRoot`，并在路径上的所有节点上标记 `childLanes`（提示父节点：你的子树里有更新）。
+
+#### 2. 构造阶段 (Update)
+在 `workLoop` 遍历过程中，每个节点的 `beginWork` 逻辑发生了变化：
+
+**Bailout 策略（性能优化的关键）：**
+- React 会对比 `oldProps === newProps` 且 `lane` 优先级是否匹配。
+- **前提条件**：`Bailout` 只能发生在子树**已经存在**（即 `current !== null`）且**节点类型完全没有变化**的情况下。
+- 如果**没有变化**，React 会尝试直接复用子树。
+- 如果**有变化**，才会进入 `switch-case` 真正的组件渲染逻辑。
+
+**Diff 算法（决定是否新增/删除/移动节点）：**
+1. **父节点 `beginWork` 执行**：拿到最新的 JSX 子元素。
+2. **对比阶段**：将 JSX 与旧 Fiber 树对比`key`和`type`，确定子节点是该“复用”、“新建”还是“删除”。
+3. **副作用打标（重点）**：如果子节点位置变了，父节点此时会给子节点打上 `Placement`（移动/插入）标记。
+
+**那子节点内容变了(type)怎么办？**
+- 子节点的**位置和类型**（即身份）：由父节点的 `beginWork` (Diff) 决定，如果diff期间发现元素的type发生了变化，React 会认为这是一个完全不同的结构，直接**销毁旧的重建新的**。
+- 子节点的**具体属性差异**（即内容）：由子节点自己的 `completeWork` (Props Diff) 决定。
+
+**核心判定标准**：React 会根据 **`key`** 和 **`type`** 来决定是否复用旧 Fiber。
+  - **`type`**：节点的类型。如果是原生 DOM，就是 `'div'`, `'span'` 等字符串；如果是组件，就是构造函数或类本身。如果 `type` 变了（比如从 `div` 变成 `p`），React 会认为这是一个完全不同的结构，直接**销毁旧的重建新的**。
+  - **`key`**：节点的唯一身份 ID（由开发者手动指定）。它是为了解决“兄弟节点位置变化”时的性能问题。如果 `key` 变了，React 会认为这也是一个新节点。
+- **匹配成功**：`key` 和 `type` 都没变。复用旧 Fiber，仅更新 `pendingProps`（等待后续更新）。
+- **匹配失败**：`key` 或 `type` 变了。标记删除旧 Fiber（放入 `deletions`），创建新 Fiber（打上 `Placement` 标记）。
+
+#### 3. 完成阶段 (Update)
+在 `completeWork` 中：
+- **HostComponent（原生节点）**：不再创建新 DOM，而是调用 `updateHostComponent`。
+- **Diff Props**：对比新旧属性（如 `style`, `className`），计算出增量更新补丁 `updatePayload`（形如 `['className', 'active', 'style', {color: 'red'}]`）。
+- **打标**：如果属性有变，给当前 Fiber 打上 `Update` 的 `flags`。
+
+#### 4. 提交阶段 (Update)
+进入 `commitRoot` 后，React 根据收集到的 `subtreeFlags` 找到有变动的节点：
+- **Before Mutation**：执行 `getSnapshotBeforeUpdate`。
+- **Mutation**：根据 `updatePayload` 将差异同步到真实 DOM。
+- **Layout**：执行 `useLayoutEffect` 的销毁与回调。
+
+图解部分参考 https://7km.top/main/fibertree-update#%E8%BF%87%E7%A8%8B%E5%9B%BE%E8%A7%A3
+
+### 渲染阶段
+
+即图中的[`commitRoot`](#核心包关系图分析)函数。
+
+这是 React 渲染流程的最后一公里。当 `render` 阶段结束，React 已经通过 `completeUnitOfWork` 得到了整棵 Fiber 树的补丁清单（`flags` 和 `deletions`）。接下来，`commitRoot` 会以**同步、不可中断**的方式将这些补丁应用到物理 DOM 上。
+
+#### commitRoot 的三个子阶段
+
+根据源码实现，`commitRoot` 内部通过一个深度优先遍历，分三次扫描副作用链（Effect List），完成了从逻辑变更到物理展现的转化：
+
+1.  **Before Mutation (变更前)**：
+    *   **核心工作**：在 DOM 还没变动之前，给组件一个“留影”的机会。
+    *   **触发行为**：调用类组件的 `getSnapshotBeforeUpdate`。
+    *   **副作用处理**：开始调度 `useEffect` 的异步任务（使用 `Scheduler` 以 Normal 优先级异步执行）。
+
+2.  **Mutation (变更中)**：
+    *   **核心工作**：这是真正动刀子的阶段。React 会遍历副作用链，执行物理操作。
+    *   **触发行为**：
+        *   **Placement**：调用 `parentNode.insertBefore` 或 `appendChild`。
+        *   **Update**：根据 `updatePayload` 更新 DOM 属性（如 `style`, `id`, `textContext`）。
+        *   **Deletion**：从父节点移除 DOM，并触发子树上所有组件的 `componentWillUnmount` 和 `useLayoutEffect` 的销毁函数。
+    *   **标志位**：此时 `fiber.stateNode` 已经指向了最新的 DOM。
+
+3.  **Layout (布局后)**：
+    *   **核心工作**：DOM 已经更新，浏览器还没重绘（Paint）。这是获取 DOM 尺寸、位置的黄金时间。
+    *   **触发行为**：
+        *   **同步 Hook**：执行 `useLayoutEffect` 的回调。
+        *   **生命周期**：执行 `componentDidMount` 或 `componentDidUpdate`。
+        *   **Ref 更新**：将最新的 DOM 实例或组件实例绑定到 `ref.current` 上。
+
+#### 流程伪代码示意
+
+```javascript
+function commitRoot(root) {
+  const finishedWork = root.finishedWork;
+  
+  // 1. Before Mutation 阶段
+  // dom 变更之前, 处理副作用队列中带有Snapshot,Passive标记的fiber节点.
+  // Snapshot:对应类组件中的getSnapshotBeforeUpdate生命周期函数
+  // Passive:对应useEffect Hook，会添加一个异步任务，等commitRoot执行完毕后由Scheduler调度执行
+  commitBeforeMutationEffects(finishedWork);
+  
+  // 2. Mutation 阶段（真正的 DOM 操作）
+  // dom 变更, 界面得到更新. 处理副作用队列中带有Placement, Update, Deletion, Hydrating标记的fiber节点.
+  // Placement: 新增节点，调用insertBefore或appendChild
+  // Update: 更新节点属性，调用updatePayload中记录的属性更新方法
+  // Deletion: 删除节点，调用parentNode.removeChild，并触发componentWillUnmount和useLayoutEffect的销毁函数
+  // Hydrating: 服务器渲染时的特殊标记，表示这个节点是从服务器来的，需要特殊处理
+  commitMutationEffects(finishedWork, root);
+  
+  // 3. 树切换：将 workInProgress 树正式变为 current 树
+  // 这是一个分水岭：在此之前 current 指向旧树，在此之后指向新树
+  root.current = finishedWork;
+  
+  // 4. Layout 阶段（DOM 已更新，用于读取布局）
+  // dom 变更后, 处理副作用队列中带有Update | Callback标记的fiber节点.
+  // 此时可以同步读取 DOM 布局信息（offsetWidth等），并执行生命周期/同步 Hook。
+  // Update: 对于类组件，涉及componentDidMount/componentDidUpdate；对于函数组件，涉及useLayoutEffect。
+  // Callback: 对应触发 setState(partialState, callback) 中的回调函数，或者通过 ReactDOM.render 传入的第三个参数回调。
+  commitLayoutEffects(finishedWork, root);
+}
+```
+
+> **生命周期与 Hooks 的执行时机**
+>
+> 所有的“副作用”都分布在上述三个子阶段中：
+> 1. **Before Mutation**: 触发 `getSnapshotBeforeUpdate`。
+> 2. **Mutation**: 执行 `useLayoutEffect` 的销毁函数，触发 `componentWillUnmount`。
+> 3. **Layout**:
+>    - **同步执行顺序**: 
+>      1. **类组件**: `componentDidMount` / `componentDidUpdate`。
+>      2. **Hooks**: `useLayoutEffect` 回调（按 Hooks 定义顺序执行）。
+>      3. **Refs**: **React 自动更新 `ref.current`**。将最新的 DOM 实例或组件实例绑定到 `ref` 对象上。
+>    - **异步调度**: `useEffect` 会在整个 `commitRoot` 完成并**让出主线程**后，由 Scheduler 在空闲时触发其回调。
