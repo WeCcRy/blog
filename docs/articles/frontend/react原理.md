@@ -548,6 +548,21 @@ ReactElemet->Fiber->DOM的过程
 
 ![](./images/domtransform.png)
 
+### fiber节点上的状态和副作用
+
+状态相关：
+- `flag.pendingProps`：输入属性, 从ReactElement对象传入的 props. 它和fiber.memoizedProps比较可以得出属性是否变动.
+- `flag.memoizedProps`：一次生成子节点时用到的属性, 生成子节点之后保持在内存中. 向下生成子节点之前叫做pendingProps, 生成子节点之后会把pendingProps赋值给memoizedProps用于下一次比较
+- `flag.memoizedState`：上一次生成子节点之后保持在内存中的局部状态.
+- `flag.updateQueue`：存储update更新对象的队列, 每一次发起更新, 都需要在该队列上创建一个update对象.
+
+副作用相关：
+- `flag.flags`：当前fiber节点的副作用标记, 例如Placement、Update、Deletion等. 这些标记会在调和阶段被设置, 在提交阶段被执行。标记采用位掩码的方式, 可以同时存在多个标记.
+- `flag.subtreeFlags`：子树的副作用标记, 代表当前fiber节点及其所有后代节点的副作用.
+- `flag.nextEffect`：单项链表，指向下一个具有副作用的fiber节点.
+- `flag.firstEffect`：单项链表，指向当前fiber节点的第一个具有副作用的子节点.
+- `flag.lastEffect`：单项链表，指向当前fiber节点的最后一个具有副作用的子节点.
+
 ### 启动阶段
 
 [之前介绍到](#启动过程)，在进入`react-reconciler`之前，ReactDOM会先创建一个`fiberRoot`对象（图中第二个对象），并在这个`fiberRoot`上创建一个`hostRootFiber`（图中第三个对象）。如下图所示:
@@ -1004,3 +1019,53 @@ function commitRoot(root) {
 >      2. **Hooks**: `useLayoutEffect` 回调（按 Hooks 定义顺序执行）。
 >      3. **Refs**: **React 自动更新 `ref.current`**。将最新的 DOM 实例或组件实例绑定到 `ref` 对象上。
 >    - **异步调度**: `useEffect` 会在整个 `commitRoot` 完成并**让出主线程**后，由 Scheduler 在空闲时触发其回调。
+
+## hook
+
+hook的目的是为了控制fiber节点的状态和副作用。其身上的主要属性为：
+- `hook.memoizedState`：当前渲染阶段最终计算出的状态值。它会尽可能包含所有当前优先级匹配的更新（在高优任务插队时，它可能包含跳过中间低优任务后的“抢跑”计算结果，用于屏幕显示）。
+- `hook.baseState`：基础状态锚点。当存在优先级被跳过的更新时，它是第一个被跳过的更新之前的所有更新计算出的状态；作为下次重新遍历 `baseQueue` 时的逻辑起点。
+- `hook.baseQueue`：基础更新队列。当高优先级任务插队导致部分更新被推迟处理时，这些被推迟的更新会保存在这里（完整保留后续更新），确保下次渲染时能从正确的起点“恢复”状态计算。
+- `hook.queue`：存储update更新对象的环形链表, 每一次发起更新, 都需要在该队列上创建一个update对象.
+- `hook.next`：指向下一个hook对象.
+- `hook.dependency`：
+
+hook也被分为两种类型的hook，`状态hook`和`副作用hook`
+
+`状态hook`一般是能实现数据持久化且没有副作用的`hook`，如`useState`、`useReducer`等。它们的更新会直接修改`hook.memoizedState`，并且会在下一次渲染时被`beginWork`拿到进行比较和更新。
+
+`副作用hook`一般是有副作用的`hook`，如`useEffect`、`useLayoutEffect`等。它们的更新会被收集到fiber节点的副作用链表中，在提交阶段被执行。
+
+在函数组件执行的时候，当执行到`useState`或者`useEffect`等hook时，会按顺序创建一个`hook`对象，并把它链接到当前fiber节点的`memoizedState`上。每次渲染时，React会根据当前执行的hook数量和顺序来匹配之前的hook对象，从而实现状态的持久化和副作用的正确执行。因此hook执行的顺序和数量必须保持一致，否则会导致状态错乱或者副作用执行错误。
+
+## useContext原理
+
+1. Provider 顶层初始化
+
+当在应用顶层编写 `<MyContext.Provider value={...}>` 时：
+
+Fiber 节点创建：React 会创建一个类型为 ContextProvider 的 Fiber 节点。
+
+值同步：在渲染（BeginWork）阶段，Provider 会将当前的 value 属性同步到 Context 对象内部的隐藏属性（_currentValue）上，确保后续子组件能通过该引用拿到最新值。
+
+2. 底层组件消费（useContext）阶段
+
+寻踪定位：在 Fiber 树深度优先遍历过程中，React 维护着当前路径上的 **Provider 栈**（当 `beginWork` 遇到 `ContextProvider` 时，它会把 旧的 `_currentValue` 推入栈中，然后把 新的 value 覆盖到 Context 对象上。）。后代组件通过 `useContext(MyContext)` 传入的引用作为“钥匙”，定位到距离自己最近的 MyContext 实例。
+
+读取返回值：React 直接从该 Context 对象的 _currentValue 执行 readContext。
+
+建立“双向订阅”关系：
+- Context 侧：将当前的消费组件（Fiber 节点）添加到该 Context 的订阅者**链表**中（记录“谁在看我”）。
+- Fiber 侧：在当前 Fiber 节点的 `dependencies` 属性中记录下该 Context 的引用。
+  - **一致性校验**：当该 Fiber 渲染被中断并恢复时，React 会通过 `dependencies` 检查其订阅的 Context 值是否发生了变化，从而决定是继续渲染还是从头开始。
+  - **懒清理机制**：当 Fiber 被销毁时，React 不会立即从订阅链表中删除它。Context 对象在下一次触发变更并遍历链表时，会检查 Fiber 的状态标志并顺带将其移除。
+
+3. 修改 Provider Value 触发变更
+
+当父组件更新，导致 Provider 的 value 发生变化（**Object.is 为 false**）时：
+
+广播通知：Provider 节点会立即遍历其维护的“订阅者名单”（即订阅者链表）。
+
+打上更新标记：找到名单中所有消费该 Context 的 Fiber 节点，并打上高优先级的更新标志（Lanes）。与此同时，这些 Fiber 节点会顺着自己的 `return` 指针递归向上，将该优先级合并到所有祖先组件的 `childLanes` 属性中，从而在 Fiber 树上标记出一条通往消费组件的“更新路径”。
+
+穿透渲染：由于消费组件是通过 Fiber 级别的依赖关系被直接激活的，即使它们的父组件使用了 `React.memo` 拦截了常规更新，React 也会在协调过程中“穿透”这些优化，强制触发这些消费组件及其子树的重新渲染，确保 UI 响应最新数据。
