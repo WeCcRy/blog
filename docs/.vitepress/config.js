@@ -1,3 +1,5 @@
+import markdownItMathjax3 from 'markdown-it-mathjax3'
+
 const base = "/blog/"; // 设置base路径，部署到github时需要设置
 const thisYear = new Date().getFullYear(); // 获取当前年份
 
@@ -5,6 +7,12 @@ export default {
     title: 'WeCcRy', // 博客的标题
     description: 'wangy的个人博客', // 博客的介绍
     base: base, // 设置base路径，部署到github时需要设置
+    markdown: {
+        math: true,
+        config: (md) => {
+            md.use(markdownItMathjax3)
+        },
+    },
     head: [
         ['link', { rel: 'icon', href: `${base}weblogo.ico` }],  // 指向 public/weblogo.ico
     ],
@@ -62,6 +70,10 @@ export default {
             {
                 text: "AI",
                 items: [
+                    {
+                        text: "Agent",
+                        link: "/articles/AI/Agent.md"
+                    },
                     {
                         text: "常用概念",
                         link: "/articles/AI/concepts",
@@ -210,12 +222,16 @@ export default {
                     text: "AI",
                     items: [
                         {
+                            text: "Agent",
+                            link: "/articles/AI/Agent.md"
+                        },
+                        {
                             text: "概念解释",
                             link: "/articles/AI/concepts",
                         },
                         {
                             text: "Agent开发",
-                            link: "/articles/AI/agent开发",
+                            link: "/articles/AI/Agent业务开发",
                         },
                     ],
                 },
